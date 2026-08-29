@@ -10,7 +10,7 @@
 
 ![Swagger UI](docs/images/swagger.png)
 
-DART·KRX·네이버 금융에서 기업 펀더멘탈을 자동 수집해 정규화된 REST API 로 제공합니다.
+DART·KRX·네이버 금융에서 기업 펀더멘탈을 모아 정규화한 뒤 REST API 로 내준다.
 
 ## 왜 캐시 우선인가
 
@@ -59,7 +59,7 @@ open http://localhost:8010/docs     # Swagger UI
 | `GET` | `/health` | 헬스체크 |
 
 전체 요청/응답 예시와 스크리닝 파라미터는 **[docs/api-examples.md](docs/api-examples.md)** 에 있다.
-바로 실행 가능한 클라이언트 예제는 [`examples/`](examples/) 디렉토리에 있다.
+바로 돌려볼 수 있는 클라이언트 예제는 [`examples/`](examples/) 에 있다.
 
 ## 데이터 소스
 
