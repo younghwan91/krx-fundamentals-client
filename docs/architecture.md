@@ -81,7 +81,9 @@ cp .env.example .env
 | `CORS_ORIGINS` | `["*"]` | — | CORS 허용 origin 목록 |
 
 서버 바인드 주소·포트·워커 수는 환경변수가 아니라 실행 명령에서 정한다 — 컨테이너는
-`Dockerfile` 의 `--host 0.0.0.0 --port 8000`, 로컬은 위 `uvicorn ... --port 8010` 이다.
+`Dockerfile` 의 `--host 0.0.0.0 --port 8000` 이고, 로컬 실행은 `uvicorn ... --port 8010`
+([README 로컬 개발](../README.md#로컬-개발))이다. compose 의 redis 는 호스트 6389 에 매핑돼 있으므로,
+로컬에서 그 Redis 를 쓸 때는 `REDIS_URL=redis://localhost:6389` 로 덮어써야 한다.
 
 ---
 
