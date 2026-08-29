@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "krx-fundamentals-api"
 version = "0.1.0"
-description = "국내 기업 펀더멘탈 데이터 REST API — 재무제표, 투자지표, 배당, 대주주"
+description = "국내 기업 펀더멘탈 REST API — 재무제표·투자지표·배당·종목 스크리닝 (FastAPI + Redis)"
 readme = "README.md"
 license = "Apache-2.0"
 authors = [{ name = "Younghwan Chae", email = "chyohw97@gmail.com" }]
