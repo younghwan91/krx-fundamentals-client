@@ -62,6 +62,25 @@ async def screen():
 
 더 많은 예제는 [`examples/`](examples/) 참고.
 
+DART 키는 하루 호출 한도가 있다. 한도를 소진하면 `DartScraper`의 모든 메서드가
+`DartQuotaExceededError`를 던진다 — 여러 키를 순환하는 오케스트레이터가 "데이터
+없음"과 "한도 초과"를 구분할 수 있도록 별도 예외로 알린다:
+
+```python
+from krx_fundamentals_client import DartQuotaExceededError, DartScraper
+
+async def fetch_with_rotation(tickers, keys):
+    for key in keys:
+        scraper = DartScraper(api_key=key)
+        try:
+            return [await scraper.fetch_company(t) for t in tickers]
+        except DartQuotaExceededError:
+            continue
+        finally:
+            await scraper.close()
+    raise RuntimeError("모든 키가 일한도를 소진했다")
+```
+
 ## 데이터 소스
 
 | 소스 | 데이터 | 수집 단위 | 인증 |

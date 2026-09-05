@@ -19,6 +19,19 @@ from krx_fundamentals_client.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+#: DART 응답 status. 일한도 소진 시 이 값이 온다.
+QUOTA_EXHAUSTED_STATUS = "020"
+
+
+class DartQuotaExceededError(Exception):
+    """DART API 키가 일한도(020)를 소진했다.
+
+    호출부(예: 여러 키를 순환하는 상위 오케스트레이터)가 "해당 조건에
+    데이터가 없었다"(그 외 실패 status, 조용히 빈 값 반환)와 "한도 초과로
+    못 가져왔다"를 구분할 수 있도록 별도 예외로 알린다 — 둘 다 빈 값으로
+    뭉개면 재무제표 수집 파이프라인에 조용한 결측이 생긴다.
+    """
+
 REPORT_CODE: dict[ReportType, str] = {
     ReportType.ANNUAL: "11011",
     ReportType.HALF: "11012",
@@ -103,8 +116,15 @@ class DartScraper(BaseScraper):
 
     @staticmethod
     def _check_response(data: dict, context: str = "") -> bool:
-        """DART API 응답의 status를 확인. 정상(000)이면 True."""
+        """DART API 응답의 status를 확인. 정상(000)이면 True.
+
+        일한도 소진(020)은 False 대신 DartQuotaExceededError 를 던진다 —
+        호출부가 여러 키를 순환할 때 "그냥 데이터 없음"과 구분해야 한다.
+        """
         status = data.get("status", "")
+        if status == QUOTA_EXHAUSTED_STATUS:
+            suffix = f", {context}" if context else ""
+            raise DartQuotaExceededError(f"DART API key exhausted daily quota (status=020{suffix})")
         if status != "000":
             msg = data.get("message", "unknown error")
             logger.warning("[dart] %s — status=%s, message=%s", context, status, msg)
@@ -146,6 +166,15 @@ class DartScraper(BaseScraper):
                 stock_code = (item.findtext("stock_code") or "").strip()
                 if stock_code and corp_code:
                     mapping[stock_code] = corp_code
+        except zipfile.BadZipFile:
+            # 일한도 소진 등 오류 시 ZIP 대신 JSON 오류 payload 가 온다.
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
+            self._check_response(data, "corp_codes")
+            logger.error("[dart] corp code download returned non-ZIP payload: %s", data)
+            return self._corp_map
         except Exception:
             logger.exception("[dart] Failed to parse corp code XML")
             return self._corp_map

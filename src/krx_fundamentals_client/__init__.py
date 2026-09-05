@@ -13,7 +13,7 @@ from krx_fundamentals_client.models.schemas import (
     Shareholder,
 )
 from krx_fundamentals_client.scrapers.base import BaseScraper
-from krx_fundamentals_client.scrapers.dart import DartScraper
+from krx_fundamentals_client.scrapers.dart import DartQuotaExceededError, DartScraper
 from krx_fundamentals_client.scrapers.krx import KrxScraper
 from krx_fundamentals_client.scrapers.naver import NaverScraper
 from krx_fundamentals_client.screening import rank_stocks, screen_stocks
@@ -21,6 +21,7 @@ from krx_fundamentals_client.screening import rank_stocks, screen_stocks
 __all__ = [
     "BaseScraper",
     "Company",
+    "DartQuotaExceededError",
     "DartScraper",
     "Dividend",
     "Executive",

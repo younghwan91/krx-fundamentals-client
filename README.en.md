@@ -62,6 +62,25 @@ async def screen():
 
 More examples in [`examples/`](examples/).
 
+DART keys carry a daily call quota. Once exhausted, every `DartScraper` method
+raises `DartQuotaExceededError` — a distinct exception so an orchestrator
+rotating multiple keys can tell "no data" apart from "quota exceeded":
+
+```python
+from krx_fundamentals_client import DartQuotaExceededError, DartScraper
+
+async def fetch_with_rotation(tickers, keys):
+    for key in keys:
+        scraper = DartScraper(api_key=key)
+        try:
+            return [await scraper.fetch_company(t) for t in tickers]
+        except DartQuotaExceededError:
+            continue
+        finally:
+            await scraper.close()
+    raise RuntimeError("all keys exhausted their daily quota")
+```
+
 ## Data sources
 
 | Source | Data | Unit of collection | Auth |

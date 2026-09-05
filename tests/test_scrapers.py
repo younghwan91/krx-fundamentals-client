@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from krx_fundamentals_client.models.schemas import Market
 from krx_fundamentals_client.scrapers.base import BaseScraper
-from krx_fundamentals_client.scrapers.dart import DartScraper
+from krx_fundamentals_client.scrapers.dart import DartQuotaExceededError, DartScraper
 from krx_fundamentals_client.scrapers.krx import KrxScraper
 from krx_fundamentals_client.scrapers.naver import NaverScraper
 
@@ -60,6 +62,18 @@ async def test_dart_fetch_company_with_mock():
     assert company.market == Market.KOSPI
     assert company.ceo == "한종희"
     assert company.fiscal_month == 12
+
+
+async def test_dart_fetch_company_raises_on_quota_exhausted():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"status": "020", "message": "요청 제한 초과"}
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    with pytest.raises(DartQuotaExceededError):
+        await scraper.fetch_company("005930")
 
 
 async def test_krx_scraper_init():
