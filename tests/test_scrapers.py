@@ -109,6 +109,45 @@ async def test_dart_fetch_financials_batch_splits_by_corp_code():
     assert result["000660"].net_income == 5_000_000
 
 
+async def test_dart_fetch_financials_batch_fills_prior_and_yoy():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "status": "000",
+        "list": [
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "매출액",
+                "thstrm_amount": "300,000,000", "frmtrm_amount": "200,000,000",
+            },
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "당기순이익",
+                "thstrm_amount": "10,000,000", "frmtrm_amount": "-20,000,000",
+            },
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "자산총계",
+                "thstrm_amount": "1,000,000,000", "frmtrm_amount": "900,000,000",
+            },
+        ],
+    }
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    result = await scraper.fetch_financials_batch(["005930"], year=2025)
+
+    fs = result["005930"]
+    assert fs is not None
+    assert fs.revenue_prior == 200_000_000
+    assert fs.revenue_yoy == pytest.approx(50.0)
+    assert fs.net_income_prior == -20_000_000
+    assert fs.net_income_yoy == pytest.approx((10_000_000 - -20_000_000) / 20_000_000 * 100)
+    # 대차대조표 항목은 전년동기/YoY 대상이 아니다.
+    assert fs.total_assets == 1_000_000_000
+
+
 async def test_dart_fetch_financials_batch_none_for_missing_corp():
     scraper = DartScraper(api_key="test_key")
     scraper._corp_map = {"005930": "00126380", "000660": "00164779"}

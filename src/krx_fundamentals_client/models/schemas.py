@@ -67,6 +67,10 @@ class FinancialStatement(BaseModel):
     total_liabilities: float | None = None  # 부채총계
     total_equity: float | None = None  # 자본총계
 
+    revenue_prior: float | None = None  # 매출액 전년동기 (절대값)
+    operating_income_prior: float | None = None  # 영업이익 전년동기 (절대값)
+    net_income_prior: float | None = None  # 당기순이익 전년동기 (절대값)
+
     revenue_yoy: float | None = None  # 매출 전년비 (%)
     operating_income_yoy: float | None = None  # 영업이익 전년비 (%)
     net_income_yoy: float | None = None  # 순이익 전년비 (%)

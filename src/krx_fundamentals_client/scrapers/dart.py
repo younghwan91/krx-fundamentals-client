@@ -96,11 +96,25 @@ def _parse_float(value: str | None) -> float | None:
         return None
 
 
+#: 전년동기 절대값(frmtrm_amount)과 YoY(%)를 함께 채우는 손익계산서 항목.
+#: 자산총계 등 대차대조표 항목은 "전기" 의미가 달라 대상에서 제외한다.
+YOY_FIELDS: tuple[str, ...] = ("revenue", "operating_income", "net_income")
+
+
+def _calc_yoy(current: float | None, prior: float | None) -> float | None:
+    """전년동기 대비 증감률(%). 전년동기가 0이거나 값이 없으면 계산하지 않는다."""
+    if current is None or prior is None or prior == 0:
+        return None
+    return (current - prior) / abs(prior) * 100
+
+
 def _parse_financial_rows(rows: list[dict]) -> dict[str, float | None]:
     """fnlttSinglAcnt/fnlttMultiAcnt 응답의 한 종목분 ``list`` 행을 필드별로 뽑는다.
 
     CFS(연결) 값이 이미 있으면 OFS(개별)로 덮어쓰지 않는다 — 같은 계정이
-    연결·개별 두 벌로 오는 경우 연결을 우선한다.
+    연결·개별 두 벌로 오는 경우 연결을 우선한다. :data:`YOY_FIELDS`에 해당하는
+    항목은 같은 행의 ``frmtrm_amount``(전년동기)도 함께 뽑아 ``{field}_prior``로
+    담고, 이를 바탕으로 ``{field}_yoy``(%)도 계산해 넣는다.
     """
     values: dict[str, float | None] = {}
     for row in rows:
@@ -112,6 +126,10 @@ def _parse_financial_rows(rows: list[dict]) -> dict[str, float | None]:
         if field in values and fs_div == "OFS":
             continue
         values[field] = _parse_amount(row.get("thstrm_amount"))
+        if field in YOY_FIELDS:
+            values[f"{field}_prior"] = _parse_amount(row.get("frmtrm_amount"))
+    for field in YOY_FIELDS:
+        values[f"{field}_yoy"] = _calc_yoy(values.get(field), values.get(f"{field}_prior"))
     return values
 
 
@@ -321,6 +339,12 @@ class DartScraper(BaseScraper):
             total_assets=values.get("total_assets"),
             total_liabilities=values.get("total_liabilities"),
             total_equity=values.get("total_equity"),
+            revenue_prior=values.get("revenue_prior"),
+            operating_income_prior=values.get("operating_income_prior"),
+            net_income_prior=values.get("net_income_prior"),
+            revenue_yoy=values.get("revenue_yoy"),
+            operating_income_yoy=values.get("operating_income_yoy"),
+            net_income_yoy=values.get("net_income_yoy"),
         )
 
     async def fetch_financials_batch(
@@ -394,6 +418,12 @@ class DartScraper(BaseScraper):
                     total_assets=values.get("total_assets"),
                     total_liabilities=values.get("total_liabilities"),
                     total_equity=values.get("total_equity"),
+                    revenue_prior=values.get("revenue_prior"),
+                    operating_income_prior=values.get("operating_income_prior"),
+                    net_income_prior=values.get("net_income_prior"),
+                    revenue_yoy=values.get("revenue_yoy"),
+                    operating_income_yoy=values.get("operating_income_yoy"),
+                    net_income_yoy=values.get("net_income_yoy"),
                 )
 
         return result
