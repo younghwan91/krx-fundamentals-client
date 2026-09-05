@@ -131,7 +131,7 @@ Korean and US equities plus crypto. Each repo stands on its own.
 
 | Market | Project | Description |
 |--------|---------|-------------|
-| 🇰🇷 KR equities | **[kiwoom-rest-api](https://github.com/younghwan91/kiwoom-rest-api)** | Kiwoom Securities REST API Python client — full domestic-equity endpoint coverage, realtime WebSocket, sync + async (`pip install kiwoom-client`) |
+| 🇰🇷 KR equities | **[kiwoom-client](https://github.com/younghwan91/kiwoom-client)** | Kiwoom Securities REST API Python client — full domestic-equity endpoint coverage, realtime WebSocket, sync + async (`pip install kiwoom-client`) |
 | 🇰🇷 KR equities | **[krx-news-rest-api](https://github.com/younghwan91/krx-news-rest-api)** | Korean equity news and disclosure collection API (FastAPI + Redis) |
 | 🇰🇷 KR equities | **[quant-airflow](https://github.com/younghwan91/quant-airflow)** | Airflow pipeline loading prices, flows and earnings into TimescaleDB — keeps delisted names to avoid survivorship bias |
 | 🇰🇷 KR equities | **[kr-quant](https://github.com/younghwan91/kr-quant)** | KOSPI/KOSDAQ alpha research — walk-forward, random negative controls, purged CV and Deflated Sharpe enforced as CI guardrails |
