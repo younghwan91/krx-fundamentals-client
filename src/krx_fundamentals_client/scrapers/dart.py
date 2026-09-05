@@ -4,6 +4,7 @@ import io
 import logging
 import xml.etree.ElementTree as ET
 import zipfile
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from krx_fundamentals_client.models.schemas import (
@@ -160,13 +161,24 @@ class DartScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _check_response(data: dict, context: str = "") -> bool:
+    def _check_response(
+        data: dict,
+        context: str = "",
+        on_status: Callable[[str, str], None] | None = None,
+    ) -> bool:
         """DART API 응답의 status를 확인. 정상(000)이면 True.
 
         일한도 소진(020)은 False 대신 DartQuotaExceededError 를 던진다 —
         호출부가 여러 키를 순환할 때 "그냥 데이터 없음"과 구분해야 한다.
+
+        ``on_status``가 주어지면 000이 아닌 모든 status에 대해
+        ``on_status(status, context)``를 호출한다 — "013(공시 없음, 정상)"과
+        "010/800/900(진짜 실패)"을 구분해야 하는 호출부가, 반환 타입을 바꾸지
+        않고도 status를 직접 받아볼 수 있게 한다.
         """
         status = data.get("status", "")
+        if status != "000" and on_status is not None:
+            on_status(status, context)
         if status == QUOTA_EXHAUSTED_STATUS:
             suffix = f", {context}" if context else ""
             raise DartQuotaExceededError(f"DART API key exhausted daily quota (status=020{suffix})")
@@ -295,7 +307,11 @@ class DartScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     async def fetch_financials(
-        self, ticker: str, year: int, report_type: ReportType = ReportType.ANNUAL,
+        self,
+        ticker: str,
+        year: int,
+        report_type: ReportType = ReportType.ANNUAL,
+        on_status: Callable[[str, str], None] | None = None,
     ) -> FinancialStatement | None:
         if not self._check_api_key():
             return None
@@ -324,7 +340,8 @@ class DartScraper(BaseScraper):
             return None
 
         data = resp.json()
-        if not self._check_response(data, f"financials({ticker},{year},{report_type})"):
+        context = f"financials({ticker},{year},{report_type})"
+        if not self._check_response(data, context, on_status=on_status):
             return None
 
         values = _parse_financial_rows(data.get("list", []))
@@ -348,7 +365,11 @@ class DartScraper(BaseScraper):
         )
 
     async def fetch_financials_batch(
-        self, tickers: list[str], year: int, report_type: ReportType = ReportType.ANNUAL,
+        self,
+        tickers: list[str],
+        year: int,
+        report_type: ReportType = ReportType.ANNUAL,
+        on_status: Callable[[str, str], None] | None = None,
     ) -> dict[str, FinancialStatement | None]:
         """여러 종목의 재무제표를 ``fnlttMultiAcnt`` 배치 호출로 한 번에 가져온다.
 
@@ -360,6 +381,10 @@ class DartScraper(BaseScraper):
 
         결과에 없는 종목(해당 분기 공시가 없거나 corp_code를 못 찾은 경우)은
         ``None``으로 채워 넣는다 — 호출자가 KeyError 없이 순회할 수 있다.
+
+        ``on_status``가 주어지면 청크(최대 :data:`MULTI_BATCH_SIZE`종목)별 호출의
+        DART status가 000이 아닐 때마다 호출된다 — "013(공시 없음)"과 실제 실패
+        status를 호출부가 직접 구분할 수 있게 한다.
         """
         result: dict[str, FinancialStatement | None] = dict.fromkeys(tickers, None)
         if not self._check_api_key():
@@ -396,7 +421,8 @@ class DartScraper(BaseScraper):
                 continue
 
             data = resp.json()
-            if not self._check_response(data, f"financials_batch({year},{report_type})"):
+            context = f"financials_batch({year},{report_type})"
+            if not self._check_response(data, context, on_status=on_status):
                 continue
 
             by_corp: dict[str, list[dict]] = {}

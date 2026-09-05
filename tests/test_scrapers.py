@@ -198,6 +198,47 @@ async def test_dart_fetch_financials_batch_chunks_over_100_tickers():
     assert all(v is None for v in result.values())
 
 
+async def test_dart_fetch_financials_batch_on_status_called_for_non_success():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"status": "013", "message": "조회된 데이터가 없습니다"}
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    seen: list[tuple[str, str]] = []
+    result = await scraper.fetch_financials_batch(
+        ["005930"], year=2025, on_status=lambda status, context: seen.append((status, context)),
+    )
+
+    assert result["005930"] is None
+    assert seen == [("013", "financials_batch(2025,annual)")]
+
+
+async def test_dart_fetch_financials_batch_on_status_not_called_on_success():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "status": "000",
+        "list": [
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "매출액", "thstrm_amount": "1,000",
+            },
+        ],
+    }
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    seen: list[tuple[str, str]] = []
+    await scraper.fetch_financials_batch(
+        ["005930"], year=2025, on_status=lambda status, context: seen.append((status, context)),
+    )
+
+    assert seen == []
+
+
 async def test_krx_scraper_init():
     scraper = KrxScraper()
     assert scraper.source == "krx"
