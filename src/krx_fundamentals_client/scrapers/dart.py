@@ -49,13 +49,21 @@ CORP_CLS_TO_MARKET: dict[str, Market] = {
 ACCOUNT_MAP: dict[str, str] = {
     "매출액": "revenue",
     "수익(매출액)": "revenue",
+    "영업수익": "revenue",
     "영업이익": "operating_income",
+    "영업이익(손실)": "operating_income",
     "당기순이익": "net_income",
     "당기순이익(손실)": "net_income",
+    "분기순이익": "net_income",
+    "반기순이익": "net_income",
     "자산총계": "total_assets",
     "부채총계": "total_liabilities",
     "자본총계": "total_equity",
 }
+
+#: fnlttMultiAcnt 1회 호출당 종목 상한 — 초과 시 status=021
+#: ("조회 가능한 회사 개수 초과")를 돌려준다.
+MULTI_BATCH_SIZE = 100
 
 
 def _parse_amount(value: str | None) -> float | None:
@@ -86,6 +94,25 @@ def _parse_float(value: str | None) -> float | None:
         return float(value.replace(",", ""))
     except (ValueError, TypeError):
         return None
+
+
+def _parse_financial_rows(rows: list[dict]) -> dict[str, float | None]:
+    """fnlttSinglAcnt/fnlttMultiAcnt 응답의 한 종목분 ``list`` 행을 필드별로 뽑는다.
+
+    CFS(연결) 값이 이미 있으면 OFS(개별)로 덮어쓰지 않는다 — 같은 계정이
+    연결·개별 두 벌로 오는 경우 연결을 우선한다.
+    """
+    values: dict[str, float | None] = {}
+    for row in rows:
+        fs_div = row.get("fs_div", "")
+        account_nm = row.get("account_nm", "").strip()
+        field = ACCOUNT_MAP.get(account_nm)
+        if not field:
+            continue
+        if field in values and fs_div == "OFS":
+            continue
+        values[field] = _parse_amount(row.get("thstrm_amount"))
+    return values
 
 
 class DartScraper(BaseScraper):
@@ -282,20 +309,7 @@ class DartScraper(BaseScraper):
         if not self._check_response(data, f"financials({ticker},{year},{report_type})"):
             return None
 
-        items: list[dict] = data.get("list", [])
-        values: dict[str, float | None] = {}
-
-        for item in items:
-            # CFS(연결) 우선, OFS(개별) 보조
-            fs_div = item.get("fs_div", "")
-            account_nm = item.get("account_nm", "").strip()
-            field = ACCOUNT_MAP.get(account_nm)
-            if not field:
-                continue
-            # 연결재무제표 값이 이미 있으면 개별로 덮어쓰지 않음
-            if field in values and fs_div == "OFS":
-                continue
-            values[field] = _parse_amount(item.get("thstrm_amount"))
+        values = _parse_financial_rows(data.get("list", []))
 
         return FinancialStatement(
             ticker=ticker,
@@ -308,6 +322,81 @@ class DartScraper(BaseScraper):
             total_liabilities=values.get("total_liabilities"),
             total_equity=values.get("total_equity"),
         )
+
+    async def fetch_financials_batch(
+        self, tickers: list[str], year: int, report_type: ReportType = ReportType.ANNUAL,
+    ) -> dict[str, FinancialStatement | None]:
+        """여러 종목의 재무제표를 ``fnlttMultiAcnt`` 배치 호출로 한 번에 가져온다.
+
+        DART 문서상 호출당 최대 :data:`MULTI_BATCH_SIZE` 종목까지 comma-join 해
+        보낼 수 있다 — 종목별로 ``fnlttSinglAcnt``를 반복 호출하는 대신, 전체
+        상장 종목을 이 배치로 훑으면 호출 수가 크게 준다 (예: 2,600여 종목 ×
+        분기 4개 ≈ 10,400회 → 배치 27개 × 4 ≈ 108회). ``tickers``가
+        ``MULTI_BATCH_SIZE``를 넘으면 내부에서 자동으로 나눠 호출한다.
+
+        결과에 없는 종목(해당 분기 공시가 없거나 corp_code를 못 찾은 경우)은
+        ``None``으로 채워 넣는다 — 호출자가 KeyError 없이 순회할 수 있다.
+        """
+        result: dict[str, FinancialStatement | None] = dict.fromkeys(tickers, None)
+        if not self._check_api_key():
+            return result
+
+        reprt_code = REPORT_CODE[report_type]
+
+        for i in range(0, len(tickers), MULTI_BATCH_SIZE):
+            batch = tickers[i : i + MULTI_BATCH_SIZE]
+            corp_to_ticker: dict[str, str] = {}
+            for ticker in batch:
+                corp_code = await self._get_corp_code(ticker)
+                if corp_code:
+                    corp_to_ticker[corp_code] = ticker
+            if not corp_to_ticker:
+                continue
+
+            url = f"{self.base_url}/fnlttMultiAcnt.json"
+            try:
+                resp = await self.fetch(
+                    url,
+                    params={
+                        "crtfc_key": self.api_key,
+                        "corp_code": ",".join(corp_to_ticker),
+                        "bsns_year": str(year),
+                        "reprt_code": reprt_code,
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "[dart] Failed to fetch financials batch (%d tickers, %d/%s)",
+                    len(batch), year, report_type,
+                )
+                continue
+
+            data = resp.json()
+            if not self._check_response(data, f"financials_batch({year},{report_type})"):
+                continue
+
+            by_corp: dict[str, list[dict]] = {}
+            for item in data.get("list", []):
+                by_corp.setdefault(item.get("corp_code", ""), []).append(item)
+
+            for corp_code, ticker in corp_to_ticker.items():
+                rows = by_corp.get(corp_code)
+                if not rows:
+                    continue
+                values = _parse_financial_rows(rows)
+                result[ticker] = FinancialStatement(
+                    ticker=ticker,
+                    year=year,
+                    report_type=report_type,
+                    revenue=values.get("revenue"),
+                    operating_income=values.get("operating_income"),
+                    net_income=values.get("net_income"),
+                    total_assets=values.get("total_assets"),
+                    total_liabilities=values.get("total_liabilities"),
+                    total_equity=values.get("total_equity"),
+                )
+
+        return result
 
     # ------------------------------------------------------------------
     # 4. Dividends (배당)

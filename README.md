@@ -60,6 +60,17 @@ async def screen():
     top_by_roe = rank_stocks(ratios, RankingMetric.ROE)
 ```
 
+여러 종목의 재무제표를 한 번에 (DART `fnlttMultiAcnt` 배치, 최대 100종목/호출):
+
+```python
+financials = await scraper.fetch_financials_batch(
+    ["005930", "000660", "035420"], year=2025,
+)
+for ticker, fs in financials.items():
+    if fs is not None:
+        print(ticker, fs.revenue, fs.net_income)
+```
+
 더 많은 예제는 [`examples/`](examples/) 참고.
 
 DART 키는 하루 호출 한도가 있다. 한도를 소진하면 `DartScraper`의 모든 메서드가
@@ -85,7 +96,7 @@ async def fetch_with_rotation(tickers, keys):
 
 | 소스 | 데이터 | 수집 단위 | 인증 |
 |-----|-------|----------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원 | 종목 단위 | API 키 (무료) |
+| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원 | 종목 단위 (재무제표는 최대 100종목/호출 배치도 가능) | API 키 (무료) |
 | [KRX 정보데이터시스템](http://data.krx.co.kr) | PER, PBR, 시가총액, 섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 로그인 차단) |
 | [네이버 금융](https://m.stock.naver.com) | 시세·PER·PBR·EPS·BPS·배당수익률 | 종목 단위 | 불필요 |
 

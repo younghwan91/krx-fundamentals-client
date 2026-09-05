@@ -13,7 +13,7 @@
 
 | 소스 | 클래스 | 수집 단위 |
 |-----|-------|----------|
-| DART OpenAPI | [`DartScraper`](../src/krx_fundamentals_client/scrapers/dart.py) | 종목 단위 (호출마다 1개 티커) |
+| DART OpenAPI | [`DartScraper`](../src/krx_fundamentals_client/scrapers/dart.py) | 종목 단위 (호출마다 1개 티커) — 재무제표는 `fetch_financials_batch`로 최대 100종목/호출 배치 가능 |
 | KRX 정보데이터시스템 | [`KrxScraper`](../src/krx_fundamentals_client/scrapers/krx.py) | 시장 전체 벌크 CSV (OTP 2단계 다운로드) |
 | 네이버 금융 모바일 API | [`NaverScraper`](../src/krx_fundamentals_client/scrapers/naver.py) | 종목 단위, 다수 종목은 `fetch_batch`로 순차 수집 |
 

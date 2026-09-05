@@ -60,6 +60,17 @@ async def screen():
     top_by_roe = rank_stocks(ratios, RankingMetric.ROE)
 ```
 
+Financials for many tickers at once (DART's `fnlttMultiAcnt` batch endpoint, up to 100 tickers per call):
+
+```python
+financials = await scraper.fetch_financials_batch(
+    ["005930", "000660", "035420"], year=2025,
+)
+for ticker, fs in financials.items():
+    if fs is not None:
+        print(ticker, fs.revenue, fs.net_income)
+```
+
 More examples in [`examples/`](examples/).
 
 DART keys carry a daily call quota. Once exhausted, every `DartScraper` method
@@ -85,7 +96,7 @@ async def fetch_with_rotation(tickers, keys):
 
 | Source | Data | Unit of collection | Auth |
 |--------|------|---------------------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | Company profile, financials, dividends, shareholders, executives | Per ticker | API key (free) |
+| [DART OpenAPI](https://opendart.fss.or.kr) | Company profile, financials, dividends, shareholders, executives | Per ticker (financials also batchable, up to 100 tickers/call) | API key (free) |
 | [KRX Information Data System](http://data.krx.co.kr) | PER, PBR, market cap, sectors | Whole-market bulk CSV | None (⛔ currently blocked by login) |
 | [Naver Finance](https://m.stock.naver.com) | Price, PER, PBR, EPS, BPS, dividend yield | Per ticker | None |
 

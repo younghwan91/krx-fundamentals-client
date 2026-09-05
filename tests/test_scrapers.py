@@ -76,6 +76,89 @@ async def test_dart_fetch_company_raises_on_quota_exhausted():
         await scraper.fetch_company("005930")
 
 
+async def test_dart_fetch_financials_batch_splits_by_corp_code():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380", "000660": "00164779"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "status": "000",
+        "list": [
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "매출액", "thstrm_amount": "300,000,000",
+            },
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "당기순이익", "thstrm_amount": "20,000,000",
+            },
+            {
+                "corp_code": "00164779", "fs_div": "CFS",
+                "account_nm": "분기순이익", "thstrm_amount": "5,000,000",
+            },
+        ],
+    }
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    result = await scraper.fetch_financials_batch(["005930", "000660"], year=2025)
+
+    assert result["005930"] is not None
+    assert result["005930"].revenue == 300_000_000
+    assert result["005930"].net_income == 20_000_000
+    assert result["000660"] is not None
+    assert result["000660"].net_income == 5_000_000
+
+
+async def test_dart_fetch_financials_batch_none_for_missing_corp():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380", "000660": "00164779"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "status": "000",
+        "list": [
+            {
+                "corp_code": "00126380", "fs_div": "CFS",
+                "account_nm": "당기순이익", "thstrm_amount": "20,000,000",
+            },
+        ],
+    }
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    result = await scraper.fetch_financials_batch(["005930", "000660"], year=2025)
+
+    assert result["005930"] is not None
+    assert result["000660"] is None
+
+
+async def test_dart_fetch_financials_batch_raises_on_quota_exhausted():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"status": "020", "message": "요청 제한 초과"}
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    with pytest.raises(DartQuotaExceededError):
+        await scraper.fetch_financials_batch(["005930"], year=2025)
+
+
+async def test_dart_fetch_financials_batch_chunks_over_100_tickers():
+    scraper = DartScraper(api_key="test_key")
+    tickers = [f"{i:06d}" for i in range(150)]
+    scraper._corp_map = {t: f"corp{i}" for i, t in enumerate(tickers)}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"status": "013"}  # 조회된 데이터 없음
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    result = await scraper.fetch_financials_batch(tickers, year=2025)
+
+    assert scraper.fetch.call_count == 2  # 150개 → 100 + 50
+    assert len(result) == 150
+    assert all(v is None for v in result.values())
+
+
 async def test_krx_scraper_init():
     scraper = KrxScraper()
     assert scraper.source == "krx"
