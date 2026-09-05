@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from krx_fundamentals_api.models.schemas import DataSource, Market
-from krx_fundamentals_api.scrapers.base import BaseScraper
-from krx_fundamentals_api.scrapers.dart import DartScraper
-from krx_fundamentals_api.scrapers.krx import KrxScraper
-from krx_fundamentals_api.scrapers.naver import NaverScraper
+from krx_fundamentals_client.models.schemas import Market
+from krx_fundamentals_client.scrapers.base import BaseScraper
+from krx_fundamentals_client.scrapers.dart import DartScraper
+from krx_fundamentals_client.scrapers.krx import KrxScraper
+from krx_fundamentals_client.scrapers.naver import NaverScraper
 
 
 async def test_dart_scraper_init():
-    scraper = DartScraper()
+    scraper = DartScraper(api_key="test_key")
     assert scraper.source == "dart"
     assert scraper.base_url == "https://opendart.fss.or.kr/api"
     assert scraper._corp_map == {}
@@ -18,29 +18,23 @@ async def test_dart_scraper_init():
 
 
 async def test_dart_check_api_key_empty():
-    scraper = DartScraper()
-    with patch("krx_fundamentals_api.scrapers.dart.settings") as mock_settings:
-        mock_settings.dart_api_key = ""
-        assert scraper._check_api_key() is False
+    scraper = DartScraper(api_key="")
+    assert scraper._check_api_key() is False
 
 
 async def test_dart_check_api_key_set():
-    scraper = DartScraper()
-    with patch("krx_fundamentals_api.scrapers.dart.settings") as mock_settings:
-        mock_settings.dart_api_key = "test_key_12345"
-        assert scraper._check_api_key() is True
+    scraper = DartScraper(api_key="test_key_12345")
+    assert scraper._check_api_key() is True
 
 
 async def test_dart_fetch_company_no_api_key():
-    scraper = DartScraper()
-    with patch("krx_fundamentals_api.scrapers.dart.settings") as mock_settings:
-        mock_settings.dart_api_key = ""
-        result = await scraper.fetch_company("005930")
+    scraper = DartScraper(api_key="")
+    result = await scraper.fetch_company("005930")
     assert result is None
 
 
 async def test_dart_fetch_company_with_mock():
-    scraper = DartScraper()
+    scraper = DartScraper(api_key="test_key")
     scraper._corp_map = {"005930": "00126380"}
 
     mock_resp = MagicMock()
@@ -57,10 +51,8 @@ async def test_dart_fetch_company_with_mock():
         "acc_mt": "12",
     }
 
-    with patch("krx_fundamentals_api.scrapers.dart.settings") as mock_settings:
-        mock_settings.dart_api_key = "test_key"
-        scraper.fetch = AsyncMock(return_value=mock_resp)
-        company = await scraper.fetch_company("005930")
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+    company = await scraper.fetch_company("005930")
 
     assert company is not None
     assert company.ticker == "005930"
@@ -109,7 +101,7 @@ async def test_krx_fetch_listed_shares_empty_on_no_rows():
 
 async def test_naver_scraper_init():
     scraper = NaverScraper()
-    assert scraper.source == DataSource.NAVER
+    assert scraper.source == "naver"
     assert scraper.base_url == "https://m.stock.naver.com/api"
     assert scraper._client is None
 

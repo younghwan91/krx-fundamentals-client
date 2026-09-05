@@ -6,12 +6,6 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 
-class DataSource(StrEnum):
-    DART = "dart"
-    KRX = "krx"
-    NAVER = "naver"
-
-
 class Market(StrEnum):
     KOSPI = "kospi"
     KOSDAQ = "kosdaq"
@@ -166,21 +160,3 @@ class SectorOverview(BaseModel):
     avg_dividend_yield: float | None = None
 
 
-# --- 응답 ---
-
-
-class PaginatedResponse(BaseModel):
-    items: list
-    total: int
-    page: int
-    page_size: int
-    has_next: bool
-
-
-class CrawlerStatus(BaseModel):
-    source: DataSource
-    job_name: str = ""
-    last_crawled_at: datetime | None = None
-    items_count: int = 0
-    is_healthy: bool = True
-    error: str | None = None

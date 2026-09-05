@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from krx_fundamentals_api.models.schemas import DataSource, InvestmentRatio, Market
-from krx_fundamentals_api.scrapers.base import BaseScraper
+from krx_fundamentals_client.models.schemas import InvestmentRatio, Market
+from krx_fundamentals_client.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def _detect_market(market_name: str | None) -> Market | None:
 class NaverScraper(BaseScraper):
     """네이버 금융 모바일 JSON API 기반 투자지표 수집 스크래퍼."""
 
-    source = DataSource.NAVER
+    source = "naver"
     base_url = "https://m.stock.naver.com/api"
     min_delay = 0.3
     max_delay = 1.0

@@ -5,12 +5,12 @@ import io
 import logging
 from datetime import datetime, timedelta
 
-from krx_fundamentals_api.models.schemas import (
+from krx_fundamentals_client.models.schemas import (
     InvestmentRatio,
     Market,
     SectorOverview,
 )
-from krx_fundamentals_api.scrapers.base import BaseScraper
+from krx_fundamentals_client.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 

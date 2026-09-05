@@ -6,8 +6,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime, timedelta
 
-from krx_fundamentals_api.config import settings
-from krx_fundamentals_api.models.schemas import (
+from krx_fundamentals_client.models.schemas import (
     Company,
     Dividend,
     Executive,
@@ -16,7 +15,7 @@ from krx_fundamentals_api.models.schemas import (
     ReportType,
     Shareholder,
 )
-from krx_fundamentals_api.scrapers.base import BaseScraper
+from krx_fundamentals_client.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +81,9 @@ class DartScraper(BaseScraper):
     min_delay: float = 0.3
     max_delay: float = 1.0
 
-    def __init__(self) -> None:
+    def __init__(self, api_key: str) -> None:
         super().__init__()
+        self.api_key = api_key
         self._corp_map: dict[str, str] = {}
         self._corp_map_loaded_at: datetime | None = None
 
@@ -92,7 +92,7 @@ class DartScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _check_api_key(self) -> bool:
-        if not settings.dart_api_key:
+        if not self.api_key:
             logger.warning("[dart] DART API key is not configured")
             return False
         return True
@@ -130,7 +130,7 @@ class DartScraper(BaseScraper):
 
         url = f"{self.base_url}/corpCode.xml"
         try:
-            resp = await self.fetch(url, params={"crtfc_key": settings.dart_api_key})
+            resp = await self.fetch(url, params={"crtfc_key": self.api_key})
         except Exception:
             logger.exception("[dart] Failed to download corp code ZIP")
             return self._corp_map
@@ -184,7 +184,7 @@ class DartScraper(BaseScraper):
         try:
             resp = await self.fetch(
                 url,
-                params={"crtfc_key": settings.dart_api_key, "corp_code": corp_code},
+                params={"crtfc_key": self.api_key, "corp_code": corp_code},
             )
         except Exception:
             logger.exception("[dart] Failed to fetch company info for %s", ticker)
@@ -236,7 +236,7 @@ class DartScraper(BaseScraper):
             resp = await self.fetch(
                 url,
                 params={
-                    "crtfc_key": settings.dart_api_key,
+                    "crtfc_key": self.api_key,
                     "corp_code": corp_code,
                     "bsns_year": str(year),
                     "reprt_code": reprt_code,
@@ -297,7 +297,7 @@ class DartScraper(BaseScraper):
             resp = await self.fetch(
                 url,
                 params={
-                    "crtfc_key": settings.dart_api_key,
+                    "crtfc_key": self.api_key,
                     "corp_code": corp_code,
                     "bsns_year": str(year),
                     "reprt_code": "11011",
@@ -355,7 +355,7 @@ class DartScraper(BaseScraper):
             resp = await self.fetch(
                 url,
                 params={
-                    "crtfc_key": settings.dart_api_key,
+                    "crtfc_key": self.api_key,
                     "corp_code": corp_code,
                     "bsns_year": str(year),
                     "reprt_code": "11011",
@@ -404,7 +404,7 @@ class DartScraper(BaseScraper):
             resp = await self.fetch(
                 url,
                 params={
-                    "crtfc_key": settings.dart_api_key,
+                    "crtfc_key": self.api_key,
                     "corp_code": corp_code,
                     "bsns_year": str(year),
                     "reprt_code": "11011",

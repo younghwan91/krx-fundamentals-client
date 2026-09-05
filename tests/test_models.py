@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from krx_fundamentals_api.models.schemas import (
+from krx_fundamentals_client.models.schemas import (
     Company,
-    CrawlerStatus,
-    DataSource,
     Dividend,
     Executive,
     FinancialStatement,
     InvestmentRatio,
     Market,
-    PaginatedResponse,
     RankingMetric,
     ReportType,
     SectorOverview,
@@ -141,21 +138,6 @@ async def test_executive_creation():
     assert ex.gender == ""
 
 
-async def test_paginated_response():
-    resp = PaginatedResponse(items=["a", "b", "c"], total=10, page=1, page_size=3, has_next=True)
-    assert len(resp.items) == 3
-    assert resp.total == 10
-    assert resp.has_next is True
-    assert resp.page == 1
-
-
-async def test_data_source_enum():
-    assert DataSource.DART == "dart"
-    assert DataSource.KRX == "krx"
-    assert DataSource.NAVER == "naver"
-    assert len(DataSource) == 3
-
-
 async def test_market_enum():
     assert Market.KOSPI == "kospi"
     assert Market.KOSDAQ == "kosdaq"
@@ -190,13 +172,3 @@ async def test_sector_overview():
     assert sector.company_count == 15
     assert sector.avg_pbr is None
     assert sector.avg_dividend_yield is None
-
-
-async def test_crawler_status_defaults():
-    status = CrawlerStatus(source=DataSource.DART)
-    assert status.source == DataSource.DART
-    assert status.job_name == ""
-    assert status.items_count == 0
-    assert status.is_healthy is True
-    assert status.error is None
-    assert status.last_crawled_at is None
