@@ -107,14 +107,16 @@ Bugs and questions go to [Issues](https://github.com/younghwan91/krx-fundamental
 
 ## Related projects — open-source quant stack
 
-Korean and US equities plus crypto. Each repo stands on its own.
+Part of an open-source stack spanning Korean equities, US equities and crypto. Each repository stands on its own.
 
-| Market | Project | Description |
-|--------|---------|-------------|
-| 🇰🇷 KR equities | **[kiwoom-client](https://github.com/younghwan91/kiwoom-client)** | Kiwoom Securities REST API Python client — full domestic-equity endpoint coverage, realtime WebSocket, sync + async (`pip install kiwoom-client`) |
-| 🇰🇷 KR equities | **[krx-news-client](https://github.com/younghwan91/krx-news-client)** | Korean equity news and disclosure Python client library (DART/Hankyung/TheBell/Toss) |
-| 🇰🇷 KR equities | **[quant-airflow](https://github.com/younghwan91/quant-airflow)** | Airflow pipeline loading prices, flows and earnings into TimescaleDB — keeps delisted names to avoid survivorship bias |
-| 🇰🇷 KR equities | **[kr-quant](https://github.com/younghwan91/kr-quant)** | KOSPI/KOSDAQ alpha research — walk-forward, random negative controls, purged CV and Deflated Sharpe enforced as CI guardrails |
-| 🇺🇸 US equities | **[opt_portfolio](https://github.com/younghwan91/opt_portfolio)** | US factor engine — walk-forward on point-in-time, survivorship-corrected data, gated by Deflated Sharpe (+ VAA allocation backtester) |
-| 🇺🇸 US equities | **[automated-stock-trading-systems](https://github.com/younghwan91/automated-stock-trading-systems)** | Backtester for Bensdorp's 7 non-correlated trading systems (educational reimplementation) |
-| ₿ Crypto | **[quantbox-engine](https://github.com/younghwan91/quantbox-engine)** | Crypto futures backtest and execution engine — zero lookahead, backtest/live parity |
+| Market | Project | What it is |
+|---|---|---|
+| 🇰🇷 Korean equities | **[kiwoom-client](https://github.com/younghwan91/kiwoom-client)** | Kiwoom Securities REST API client — full domestic-equity endpoint coverage, real-time WebSocket, sync + async (`pip install kiwoom-client`) |
+| 🇰🇷 Korean equities | **[krx-news-client](https://github.com/younghwan91/krx-news-client)** | Korean market news & disclosure Python client library (DART + Hankyung + TheBell + Toss) |
+| 🇰🇷 Korean equities | **[fin-checkup](https://github.com/younghwan91/fin-checkup)** | Telegram alerts for risk disclosures + a DART/SEC financial health checkup — reports measurements and facts, never a recommendation |
+| 🇰🇷 Korean equities | **[quant-airflow](https://github.com/younghwan91/quant-airflow)** | Airflow pipeline collecting Korean market data into TimescaleDB — delisted names included, so downstream backtests aren't survivorship-biased |
+| 🇰🇷 Korean equities | **[kr-quant](https://github.com/younghwan91/kr-quant)** | KOSPI/KOSDAQ alpha research — walk-forward, random null controls, purged CV and Deflated Sharpe enforced as CI guardrails |
+| 🇺🇸 US equities | **[portfolio-research](https://github.com/younghwan91/portfolio-research)** | US equity factor engine — walk-forward gated by Deflated Sharpe and PBO on point-in-time, survivorship-bias-free data (plus tactical ETF allocation: 9 pre-registered, 0 adopted) |
+| 🇺🇸 US equities | **[automated-stock-trading-systems](https://github.com/younghwan91/automated-stock-trading-systems)** | Backtester for Bensdorp's seven non-correlated trading systems (educational reimplementation) |
+| ₿ Crypto | **[quantbox-engine](https://github.com/younghwan91/quantbox-engine)** | Crypto futures backtest & execution engine — zero lookahead, backtest↔live parity |
+
