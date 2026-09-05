@@ -15,6 +15,7 @@ from krx_fundamentals_client.models.schemas import (
     Market,
     ReportType,
     Shareholder,
+    SharesOutstanding,
 )
 from krx_fundamentals_client.scrapers.base import BaseScraper
 
@@ -61,6 +62,12 @@ ACCOUNT_MAP: dict[str, str] = {
     "부채총계": "total_liabilities",
     "자본총계": "total_equity",
 }
+
+#: stockTotqySttus 조회 시 시도할 보고서 순서 — 사업보고서가 제일 완전하지만
+#: 상장폐지 직전 사업연도엔 없는 경우가 많아 분기·반기까지 순서대로 폴백한다.
+SHARES_REPORT_FALLBACK: tuple[ReportType, ...] = (
+    ReportType.ANNUAL, ReportType.Q3, ReportType.HALF, ReportType.Q1,
+)
 
 #: fnlttMultiAcnt 1회 호출당 종목 상한 — 초과 시 status=021
 #: ("조회 가능한 회사 개수 초과")를 돌려준다.
@@ -132,6 +139,23 @@ def _parse_financial_rows(rows: list[dict]) -> dict[str, float | None]:
     for field in YOY_FIELDS:
         values[f"{field}_yoy"] = _calc_yoy(values.get(field), values.get(f"{field}_prior"))
     return values
+
+
+def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
+    """stockTotqySttus 응답의 ``list``에서 보통주 발행주식총수 행을 찾는다.
+
+    ``se == "합계"``는 우선주가 섞여 있어 시가총액 분모로 못 쓴다 — 보통주
+    행만 골라 ``istc_totqy``(발행주식총수)를 쓴다. 유통주식수(``distb_stock_co``)는
+    자기주식을 뺀 값이라 시총을 과소계상하므로 쓰지 않는다.
+    """
+    for row in rows:
+        if (row.get("se") or "").strip() != "보통주":
+            continue
+        istc_totqy = _parse_int(row.get("istc_totqy"))
+        if istc_totqy <= 0:
+            continue
+        return istc_totqy, (row.get("stlm_dt") or "").strip(), (row.get("rcept_no") or "").strip()
+    return None
 
 
 class DartScraper(BaseScraper):
@@ -453,6 +477,72 @@ class DartScraper(BaseScraper):
                 )
 
         return result
+
+    async def fetch_shares_outstanding(
+        self,
+        ticker: str,
+        year: int,
+        on_status: Callable[[str, str], None] | None = None,
+    ) -> SharesOutstanding | None:
+        """``stockTotqySttus``로 발행주식총수(보통주)를 가져온다.
+
+        사업보고서(11011) → 3분기(11014) → 반기(11012) → 1분기(11013) 순으로
+        시도해 처음 값이 잡히는 보고서에서 멈춘다 — 사업보고서가 가장
+        완전하지만, 상장폐지 직전 사업연도엔 없는 경우가 많아 분기·반기까지
+        훑어야 커버리지가 오른다.
+
+        시가총액 분모로 쓸 값이라 ``se == "보통주"`` 행만 보고 우선주가 섞인
+        ``"합계"``는 건너뛴다. 반환하는 ``stlm_dt``(기준일)와
+        ``knowledge_date``(``rcept_no`` 앞 8자리, 공시 접수일)는 서로 다른
+        시점이다 — 그 수치가 가리키는 날과 그걸 알게 된 날을 구분해야 하는
+        point-in-time 용도로 둘 다 남긴다.
+        """
+        if not self._check_api_key():
+            return None
+
+        corp_code = await self._get_corp_code(ticker)
+        if not corp_code:
+            return None
+
+        url = f"{self.base_url}/stockTotqySttus.json"
+        for report_type in SHARES_REPORT_FALLBACK:
+            try:
+                resp = await self.fetch(
+                    url,
+                    params={
+                        "crtfc_key": self.api_key,
+                        "corp_code": corp_code,
+                        "bsns_year": str(year),
+                        "reprt_code": REPORT_CODE[report_type],
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "[dart] Failed to fetch shares outstanding for %s/%d/%s",
+                    ticker, year, report_type,
+                )
+                continue
+
+            data = resp.json()
+            context = f"shares_outstanding({ticker},{year},{report_type})"
+            if not self._check_response(data, context, on_status=on_status):
+                continue
+
+            parsed = _parse_shares_outstanding(data.get("list", []))
+            if parsed is None:
+                continue
+
+            shares, stlm_dt, rcept_no = parsed
+            return SharesOutstanding(
+                ticker=ticker,
+                year=year,
+                shares_outstanding=shares,
+                report_type=report_type,
+                stlm_dt=stlm_dt,
+                knowledge_date=rcept_no[:8],
+            )
+
+        return None
 
     # ------------------------------------------------------------------
     # 4. Dividends (배당)

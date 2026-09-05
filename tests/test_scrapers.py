@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from krx_fundamentals_client.models.schemas import Market
+from krx_fundamentals_client.models.schemas import Market, ReportType
 from krx_fundamentals_client.scrapers.base import BaseScraper
 from krx_fundamentals_client.scrapers.dart import DartQuotaExceededError, DartScraper
 from krx_fundamentals_client.scrapers.krx import KrxScraper
@@ -237,6 +237,88 @@ async def test_dart_fetch_financials_batch_on_status_not_called_on_success():
     )
 
     assert seen == []
+
+
+async def test_dart_fetch_shares_outstanding_picks_common_stock_row():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "status": "000",
+        "list": [
+            {
+                "se": "보통주", "istc_totqy": "5,969,782,550",
+                "stlm_dt": "20251231", "rcept_no": "20260310002061",
+            },
+            {
+                "se": "합계", "istc_totqy": "5,979,782,550",
+                "stlm_dt": "20251231", "rcept_no": "20260310002061",
+            },
+        ],
+    }
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    result = await scraper.fetch_shares_outstanding("005930", year=2025)
+
+    assert result is not None
+    assert result.shares_outstanding == 5_969_782_550
+    assert result.report_type == ReportType.ANNUAL
+    assert result.stlm_dt == "20251231"
+    assert result.knowledge_date == "20260310"
+    assert scraper.fetch.call_count == 1
+
+
+async def test_dart_fetch_shares_outstanding_falls_back_through_reports():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    empty_resp = MagicMock()
+    empty_resp.json.return_value = {"status": "013"}
+    q3_resp = MagicMock()
+    q3_resp.json.return_value = {
+        "status": "000",
+        "list": [
+            {
+                "se": "보통주", "istc_totqy": "1,000,000",
+                "stlm_dt": "20250930", "rcept_no": "20251110001234",
+            },
+        ],
+    }
+    scraper.fetch = AsyncMock(side_effect=[empty_resp, q3_resp])
+
+    result = await scraper.fetch_shares_outstanding("005930", year=2025)
+
+    assert result is not None
+    assert result.report_type == ReportType.Q3
+    assert result.shares_outstanding == 1_000_000
+    assert scraper.fetch.call_count == 2
+
+
+async def test_dart_fetch_shares_outstanding_none_when_no_report_has_data():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    empty_resp = MagicMock()
+    empty_resp.json.return_value = {"status": "013"}
+    scraper.fetch = AsyncMock(return_value=empty_resp)
+
+    result = await scraper.fetch_shares_outstanding("005930", year=2025)
+
+    assert result is None
+    assert scraper.fetch.call_count == 4
+
+
+async def test_dart_fetch_shares_outstanding_raises_on_quota_exhausted():
+    scraper = DartScraper(api_key="test_key")
+    scraper._corp_map = {"005930": "00126380"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"status": "020", "message": "요청 제한 초과"}
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    with pytest.raises(DartQuotaExceededError):
+        await scraper.fetch_shares_outstanding("005930", year=2025)
 
 
 async def test_krx_scraper_init():

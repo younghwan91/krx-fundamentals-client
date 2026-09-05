@@ -11,6 +11,7 @@ from krx_fundamentals_client.models.schemas import (
     ReportType,
     SectorOverview,
     Shareholder,
+    SharesOutstanding,
 )
 from krx_fundamentals_client.scrapers.base import BaseScraper
 from krx_fundamentals_client.scrapers.dart import DartQuotaExceededError, DartScraper
@@ -34,6 +35,7 @@ __all__ = [
     "ReportType",
     "SectorOverview",
     "Shareholder",
+    "SharesOutstanding",
     "rank_stocks",
     "screen_stocks",
 ]

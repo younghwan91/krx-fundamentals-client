@@ -78,6 +78,19 @@ class FinancialStatement(BaseModel):
     collected_at: datetime = Field(default_factory=datetime.now)
 
 
+# --- 상장주식수 ---
+
+
+class SharesOutstanding(BaseModel):
+    ticker: str
+    year: int
+    shares_outstanding: int = 0  # 발행주식총수(보통주, istc_totqy)
+    report_type: ReportType | None = None  # 실제로 값을 얻어낸 보고서 (사업→3분기→반기→1분기 폴백)
+    stlm_dt: str = ""  # 기준일 (해당 수치가 가리키는 시점, YYYYMMDD)
+    knowledge_date: str = ""  # 공시 접수일 (그 값을 알게 된 시점, rcept_no 앞 8자리 YYYYMMDD)
+    collected_at: datetime = Field(default_factory=datetime.now)
+
+
 # --- 투자지표 ---
 
 
