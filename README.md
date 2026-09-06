@@ -64,13 +64,13 @@ async def screen():
 
 | 소스 | 데이터 | 수집 단위 | 인증 |
 |-----|-------|----------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원 | 종목 단위 (재무제표는 최대 100종목/호출 배치도 가능) | API 키 (무료) |
+| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원, 발행주식수 | 종목 단위 (재무제표는 최대 100종목/호출 배치도 가능) | API 키 (무료) |
 | [KRX 정보데이터시스템](http://data.krx.co.kr) | PER, PBR, 시가총액, 섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 로그인 차단) |
 | [네이버 금융](https://m.stock.naver.com) | 시세·PER·PBR·EPS·BPS·배당수익률 | 종목 단위 | 불필요 |
 
 ## 응답 모델
 
-`Company`, `FinancialStatement`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview` — 전부 Pydantic 모델이며 `krx_fundamentals_client`에서 바로 import 할 수 있다. 필드는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py) 참고.
+`Company`, `FinancialStatement`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SharesOutstanding`, `SectorOverview` — 전부 Pydantic 모델이며 `krx_fundamentals_client`에서 바로 import 할 수 있다. 필드는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py) 참고.
 
 ## 스크리닝 / 랭킹
 
@@ -120,7 +120,7 @@ flowchart LR
         Models["Pydantic 모델\n(models/schemas.py)"]
     end
 
-    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당·대주주·임원"]
+    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당·대주주·임원·발행주식수"]
     Krx -->|"OTP 2단계 다운로드"| KrxSite["KRX 정보데이터시스템\nPER·PBR·시가총액·섹터\n(⛔ 현재 로그인 차단)"]
     Naver --> NaverSite["네이버 금융 모바일 API\n시세·PER·PBR·EPS·BPS·배당수익률"]
 
