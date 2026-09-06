@@ -108,6 +108,40 @@ async def fetch_with_rotation(tickers, keys):
 
 `screen_stocks`, `rank_stocks`는 캐시나 상태를 갖지 않는 순수 함수다 — `KrxScraper.fetch_investment_ratios()`로 받은 `list[InvestmentRatio]`를 넘기면 그 자리에서 필터링/정렬해 반환한다. 자세한 아키텍처는 [docs/architecture.md](docs/architecture.md) 참고.
 
+## 아키텍처
+
+상시 서버·캐시·백그라운드 스케줄러가 없다. 호출자가 스크레이퍼 메서드를 부르면 그때 소스에 직접 요청해 Pydantic 모델로 정규화된 결과를 즉시 반환한다.
+
+```mermaid
+flowchart LR
+    Caller["호출자 코드"]
+
+    subgraph Client["krx_fundamentals_client"]
+        Dart["DartScraper\n(dart.py)"]
+        Krx["KrxScraper\n(krx.py)"]
+        Naver["NaverScraper\n(naver.py)"]
+        Screen["screen_stocks / rank_stocks\n(screening.py, 순수 함수)"]
+        Models["Pydantic 모델\n(models/schemas.py)"]
+    end
+
+    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당·대주주·임원"]
+    Krx -->|"OTP 2단계 다운로드"| KrxSite["KRX 정보데이터시스템\nPER·PBR·시가총액·섹터\n(⛔ 현재 로그인 차단)"]
+    Naver --> NaverSite["네이버 금융 모바일 API\n시세·PER·PBR·EPS·BPS·배당수익률"]
+
+    Caller --> Dart
+    Caller --> Krx
+    Caller --> Naver
+    Caller --> Screen
+
+    Krx -->|"list[InvestmentRatio]"| Screen
+    Screen -->|"필터링/정렬 결과"| Caller
+
+    Dart --> Models
+    Krx --> Models
+    Naver --> Models
+    Models --> Caller
+```
+
 ## 개발
 
 ```bash
