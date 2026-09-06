@@ -40,6 +40,62 @@ def _detect_market(market_name: str | None) -> Market | None:
     return None
 
 
+def parse_consensus(
+    payload: dict,
+) -> tuple[float | None, float | None, str | None]:
+    """``.../integration`` 응답에서 목표주가·투자의견 컨센서스를 뽑는다.
+
+    ``consensusInfo``가 없거나 커버리지가 없는 종목은 전부 ``None``을 반환한다.
+    """
+    info = payload.get("consensusInfo") or {}
+    target_mean = _parse_float(info.get("priceTargetMean"))
+    recomm_mean = _parse_float(info.get("recommMean"))
+    base_date = info.get("createDate") or None
+    return target_mean, recomm_mean, base_date
+
+
+def parse_estimate(
+    payload: dict,
+) -> tuple[float | None, float | None, int | None]:
+    """``.../finance/annual`` 응답에서 추정 EPS(fwd)와 최근 실적 EPS(prev)를 뽑는다.
+
+    ``trTitleList``(각 항목 ``{"isConsensus", "title", "key"}``, ``key``는
+    ``"202612"``처럼 연월 문자열) 중 ``isConsensus == "Y"``인 첫 컬럼의 ``key``를
+    추정연도 컬럼으로, 그 바로 이전 연도(``key`` 앞 4자리 -1)를 최근 실적연도
+    컬럼으로 본다. ``rowList``에서 ``title == "EPS"``인 행의
+    ``columns[key]["value"]``를 각각 fwd_eps/prev_eps로 뽑는다. 추정 컬럼을 못
+    찾거나 EPS 행이 없으면 전부 ``None``을 반환한다.
+    """
+    info = payload.get("financeInfo") or {}
+    tr_titles: list[dict] = info.get("trTitleList") or []
+
+    est_key: str | None = None
+    for title in tr_titles:
+        if title.get("isConsensus") == "Y":
+            est_key = title.get("key")
+            break
+
+    if est_key is None:
+        return None, None, None
+
+    try:
+        est_year = int(str(est_key)[:4])
+    except (ValueError, TypeError):
+        return None, None, None
+
+    prev_key = f"{est_year - 1}{str(est_key)[4:]}"
+
+    for row in info.get("rowList") or []:
+        if row.get("title") != "EPS":
+            continue
+        columns: dict = row.get("columns") or {}
+        fwd_eps = _parse_float((columns.get(est_key) or {}).get("value"))
+        prev_eps = _parse_float((columns.get(prev_key) or {}).get("value"))
+        return fwd_eps, prev_eps, est_year
+
+    return None, None, est_year
+
+
 class NaverScraper(BaseScraper):
     """네이버 금융 모바일 JSON API 기반 투자지표 수집 스크래퍼."""
 
@@ -125,3 +181,56 @@ class NaverScraper(BaseScraper):
         """주어진 ticker 목록에 대해 투자지표를 수집하여 반환한다."""
         ratios = await self.fetch_batch(tickers)
         return {"ratios": [r.model_dump() for r in ratios]}
+
+
+class NaverConsensusScraper(BaseScraper):
+    """네이버 금융 모바일 JSON API 기반 애널리스트 컨센서스 수집 스크래퍼.
+
+    유니버스 선정·배치 호출·DB 적재는 호출부(오케스트레이터) 책임이고, 이
+    스크래퍼는 종목 하나에 대한 fetch/parse만 담당한다.
+    """
+
+    source = "naver_consensus"
+    base_url = "https://m.stock.naver.com/api"
+    min_delay = 0.3
+    max_delay = 1.0
+
+    async def fetch_consensus(
+        self, ticker: str
+    ) -> tuple[float | None, float | None, str | None]:
+        """목표주가 평균·투자의견 평균·컨센서스 기준일을 가져온다.
+
+        커버리지가 없거나 요청이 실패하면 ``(None, None, None)``을 반환한다.
+        """
+        url = f"{self.base_url}/stock/{ticker}/integration"
+        try:
+            resp = await self.fetch(url)
+            return parse_consensus(resp.json())
+        except Exception:
+            logger.warning(
+                "[%s] Failed to fetch consensus for %s", self.source, ticker,
+                exc_info=True,
+            )
+            return None, None, None
+
+    async def fetch_estimate(
+        self, ticker: str
+    ) -> tuple[float | None, float | None, int | None]:
+        """추정 EPS(fwd)·최근 실적 EPS(prev)·추정연도를 가져온다.
+
+        추정 컨센서스가 없거나 요청이 실패하면 ``(None, None, None)``을 반환한다.
+        """
+        url = f"{self.base_url}/stock/{ticker}/finance/annual"
+        try:
+            resp = await self.fetch(url)
+            return parse_estimate(resp.json())
+        except Exception:
+            logger.warning(
+                "[%s] Failed to fetch estimate for %s", self.source, ticker,
+                exc_info=True,
+            )
+            return None, None, None
+
+    async def scrape(self) -> dict:
+        """단독 호출 시 빈 결과를 반환한다. fetch_consensus/fetch_estimate를 직접 사용하라."""
+        return {"consensus": []}

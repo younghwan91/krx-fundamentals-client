@@ -8,7 +8,12 @@ from krx_fundamentals_client.models.schemas import Market, ReportType
 from krx_fundamentals_client.scrapers.base import BaseScraper
 from krx_fundamentals_client.scrapers.dart import DartQuotaExceededError, DartScraper
 from krx_fundamentals_client.scrapers.krx import KrxScraper
-from krx_fundamentals_client.scrapers.naver import NaverScraper
+from krx_fundamentals_client.scrapers.naver import (
+    NaverConsensusScraper,
+    NaverScraper,
+    parse_consensus,
+    parse_estimate,
+)
 
 
 async def test_dart_scraper_init():
@@ -363,6 +368,127 @@ async def test_naver_scraper_init():
     assert scraper.source == "naver"
     assert scraper.base_url == "https://m.stock.naver.com/api"
     assert scraper._client is None
+
+
+def test_parse_consensus_extracts_target_and_recomm():
+    payload = {
+        "consensusInfo": {
+            "itemCode": "005930",
+            "createDate": "2026-09-03",
+            "recommMean": "4.05",
+            "priceTargetMean": "487,045",
+        }
+    }
+    target_mean, recomm_mean, base_date = parse_consensus(payload)
+    assert target_mean == 487045.0
+    assert recomm_mean == 4.05
+    assert base_date == "2026-09-03"
+
+
+def test_parse_consensus_none_when_no_coverage():
+    assert parse_consensus({}) == (None, None, None)
+    assert parse_consensus({"consensusInfo": {}}) == (None, None, None)
+
+
+def test_parse_estimate_extracts_fwd_and_prev_eps():
+    payload = {
+        "financeInfo": {
+            "trTitleList": [
+                {"isConsensus": "N", "title": "2023.12.", "key": "202312"},
+                {"isConsensus": "N", "title": "2024.12.", "key": "202412"},
+                {"isConsensus": "N", "title": "2025.12.", "key": "202512"},
+                {"isConsensus": "Y", "title": "2026.12.", "key": "202612"},
+            ],
+            "rowList": [
+                {
+                    "title": "매출액",
+                    "columns": {
+                        "202512": {"value": "3,336,059"},
+                        "202612": {"value": "7,395,406"},
+                    },
+                },
+                {
+                    "title": "EPS",
+                    "columns": {
+                        "202412": {"value": "4,950"},
+                        "202512": {"value": "6,564"},
+                        "202612": {"value": "48,291"},
+                    },
+                },
+            ],
+        }
+    }
+    fwd_eps, prev_eps, est_year = parse_estimate(payload)
+    assert fwd_eps == 48291.0
+    assert prev_eps == 6564.0
+    assert est_year == 2026
+
+
+def test_parse_estimate_none_when_no_consensus_column():
+    payload = {
+        "financeInfo": {
+            "trTitleList": [
+                {"isConsensus": "N", "title": "2025.12.", "key": "202512"},
+            ],
+            "rowList": [
+                {"title": "EPS", "columns": {"202512": {"value": "6,564"}}},
+            ],
+        }
+    }
+    assert parse_estimate(payload) == (None, None, None)
+
+
+def test_parse_estimate_none_when_no_eps_row():
+    payload = {
+        "financeInfo": {
+            "trTitleList": [
+                {"isConsensus": "Y", "title": "2026.12.", "key": "202612"},
+            ],
+            "rowList": [],
+        }
+    }
+    fwd_eps, prev_eps, est_year = parse_estimate(payload)
+    assert fwd_eps is None
+    assert prev_eps is None
+    assert est_year == 2026
+
+
+async def test_naver_consensus_scraper_init():
+    scraper = NaverConsensusScraper()
+    assert scraper.source == "naver_consensus"
+    assert scraper.base_url == "https://m.stock.naver.com/api"
+
+
+async def test_naver_consensus_fetch_consensus_with_mock():
+    scraper = NaverConsensusScraper()
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "consensusInfo": {
+            "createDate": "2026-09-03",
+            "recommMean": "4.05",
+            "priceTargetMean": "487,045",
+        }
+    }
+    scraper.fetch = AsyncMock(return_value=mock_resp)
+
+    result = await scraper.fetch_consensus("005930")
+    assert result == (487045.0, 4.05, "2026-09-03")
+
+
+async def test_naver_consensus_fetch_consensus_returns_none_tuple_on_error():
+    scraper = NaverConsensusScraper()
+    scraper.fetch = AsyncMock(side_effect=Exception("network error"))
+
+    result = await scraper.fetch_consensus("005930")
+    assert result == (None, None, None)
+
+
+async def test_naver_consensus_fetch_estimate_returns_none_tuple_on_error():
+    scraper = NaverConsensusScraper()
+    scraper.fetch = AsyncMock(side_effect=Exception("network error"))
+
+    result = await scraper.fetch_estimate("005930")
+    assert result == (None, None, None)
 
 
 async def test_base_scraper_make_id_deterministic():
