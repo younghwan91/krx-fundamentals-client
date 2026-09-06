@@ -60,6 +60,27 @@ async def screen():
     top_by_roe = rank_stocks(ratios, RankingMetric.ROE)
 ```
 
+배치 조회·키 순환 같은 실전 패턴은 아래 [고급 사용법](#고급-사용법)에, 바로 돌려볼 수 있는
+전체 스크립트는 [`examples/`](examples/)에 있다.
+
+## 데이터 소스
+
+| 소스 | 데이터 | 수집 단위 | 인증 |
+|-----|-------|----------|------|
+| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원 | 종목 단위 (재무제표는 최대 100종목/호출 배치도 가능) | API 키 (무료) |
+| [KRX 정보데이터시스템](http://data.krx.co.kr) | PER, PBR, 시가총액, 섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 로그인 차단) |
+| [네이버 금융](https://m.stock.naver.com) | 시세·PER·PBR·EPS·BPS·배당수익률 | 종목 단위 | 불필요 |
+
+## 응답 모델
+
+`Company`, `FinancialStatement`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview` — 전부 Pydantic 모델이며 `krx_fundamentals_client`에서 바로 import 할 수 있다. 필드는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py) 참고.
+
+## 스크리닝 / 랭킹
+
+`screen_stocks`, `rank_stocks`는 캐시나 상태를 갖지 않는 순수 함수다 — `KrxScraper.fetch_investment_ratios()`로 받은 `list[InvestmentRatio]`를 넘기면 그 자리에서 필터링/정렬해 반환한다. 자세한 아키텍처는 [docs/architecture.md](docs/architecture.md) 참고.
+
+## 고급 사용법
+
 여러 종목의 재무제표를 한 번에 (DART `fnlttMultiAcnt` 배치, 최대 100종목/호출):
 
 ```python
@@ -70,8 +91,6 @@ for ticker, fs in financials.items():
     if fs is not None:
         print(ticker, fs.revenue, fs.net_income)
 ```
-
-더 많은 예제는 [`examples/`](examples/) 참고.
 
 DART 키는 하루 호출 한도가 있다. 한도를 소진하면 `DartScraper`의 모든 메서드가
 `DartQuotaExceededError`를 던진다 — 여러 키를 순환하는 오케스트레이터가 "데이터
@@ -91,22 +110,6 @@ async def fetch_with_rotation(tickers, keys):
             await scraper.close()
     raise RuntimeError("모든 키가 일한도를 소진했다")
 ```
-
-## 데이터 소스
-
-| 소스 | 데이터 | 수집 단위 | 인증 |
-|-----|-------|----------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원 | 종목 단위 (재무제표는 최대 100종목/호출 배치도 가능) | API 키 (무료) |
-| [KRX 정보데이터시스템](http://data.krx.co.kr) | PER, PBR, 시가총액, 섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 로그인 차단) |
-| [네이버 금융](https://m.stock.naver.com) | 시세·PER·PBR·EPS·BPS·배당수익률 | 종목 단위 | 불필요 |
-
-## 응답 모델
-
-`Company`, `FinancialStatement`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview` — 전부 Pydantic 모델이며 `krx_fundamentals_client`에서 바로 import 할 수 있다. 필드는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py) 참고.
-
-## 스크리닝 / 랭킹
-
-`screen_stocks`, `rank_stocks`는 캐시나 상태를 갖지 않는 순수 함수다 — `KrxScraper.fetch_investment_ratios()`로 받은 `list[InvestmentRatio]`를 넘기면 그 자리에서 필터링/정렬해 반환한다. 자세한 아키텍처는 [docs/architecture.md](docs/architecture.md) 참고.
 
 ## 아키텍처
 
