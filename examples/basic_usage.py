@@ -12,23 +12,17 @@ DART/네이버 스크레이퍼를 직접 호출해 한 종목의 기업 개황, 
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
 from datetime import datetime
+
+from _display import print_header, require_dart_api_key
 
 from krx_fundamentals_client import DartScraper, NaverScraper
 
 TICKER = "005930"  # 삼성전자
 
 
-def print_header(title: str) -> None:
-    print(f"\n{'=' * 60}")
-    print(f"  {title}")
-    print(f"{'=' * 60}")
-
-
 async def show_company(dart: DartScraper, ticker: str) -> None:
-    print_header(f"기업 개황 ({ticker})")
+    print_header(f"기업 개황 ({ticker})", width=60)
     company = await dart.fetch_company(ticker)
     if company is None:
         print("  데이터 없음")
@@ -47,7 +41,7 @@ async def show_company(dart: DartScraper, ticker: str) -> None:
 
 
 async def show_financials(dart: DartScraper, ticker: str, year: int) -> None:
-    print_header(f"재무제표 ({ticker}, {year})")
+    print_header(f"재무제표 ({ticker}, {year})", width=60)
     stmt = await dart.fetch_financials(ticker, year)
     if stmt is None:
         print("  데이터 없음")
@@ -61,7 +55,7 @@ async def show_financials(dart: DartScraper, ticker: str, year: int) -> None:
 
 
 async def show_ratios(naver: NaverScraper, ticker: str) -> None:
-    print_header(f"투자 지표 ({ticker})")
+    print_header(f"투자 지표 ({ticker})", width=60)
     ratio = await naver.fetch_stock_info(ticker)
     if ratio is None:
         print("  데이터 없음")
@@ -82,7 +76,7 @@ async def show_ratios(naver: NaverScraper, ticker: str) -> None:
 
 
 async def show_dividends(dart: DartScraper, ticker: str, year: int) -> None:
-    print_header(f"배당 정보 ({ticker}, {year})")
+    print_header(f"배당 정보 ({ticker}, {year})", width=60)
     div = await dart.fetch_dividends(ticker, year)
     if div is None:
         print("  데이터 없음")
@@ -94,7 +88,7 @@ async def show_dividends(dart: DartScraper, ticker: str, year: int) -> None:
 
 
 async def show_shareholders(dart: DartScraper, ticker: str, year: int) -> None:
-    print_header(f"대주주 현황 ({ticker}, {year})")
+    print_header(f"대주주 현황 ({ticker}, {year})", width=60)
     shareholders = await dart.fetch_shareholders(ticker, year)
     if not shareholders:
         print("  데이터 없음")
@@ -104,10 +98,7 @@ async def show_shareholders(dart: DartScraper, ticker: str, year: int) -> None:
 
 
 async def main() -> None:
-    api_key = os.environ.get("DART_API_KEY", "")
-    if not api_key:
-        print("❌ DART_API_KEY 환경변수를 설정하세요 (https://opendart.fss.or.kr)")
-        sys.exit(1)
+    api_key = require_dart_api_key()
 
     year = datetime.now().year - 1  # 최신 확정 사업연도
     dart = DartScraper(api_key=api_key)
@@ -124,9 +115,7 @@ async def main() -> None:
         await dart.close()
         await naver.close()
 
-    print(f"\n{'=' * 60}")
-    print("  ✅ 완료!")
-    print(f"{'=' * 60}")
+    print_header("✅ 완료!", width=60)
 
 
 if __name__ == "__main__":

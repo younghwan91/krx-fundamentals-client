@@ -4,27 +4,10 @@ import logging
 
 from krx_fundamentals_client.models.schemas import InvestmentRatio, Market
 from krx_fundamentals_client.scrapers.base import BaseScraper
+from krx_fundamentals_client.scrapers.base import parse_float as _parse_float
+from krx_fundamentals_client.scrapers.base import parse_int as _parse_int
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_float(value: object) -> float | None:
-    """문자열·숫자·None 을 float | None 으로 변환. 쉼표 제거 포함."""
-    if value is None:
-        return None
-    try:
-        return float(str(value).replace(",", ""))
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_int(value: object) -> int | None:
-    if value is None:
-        return None
-    try:
-        return int(float(str(value).replace(",", "")))
-    except (ValueError, TypeError):
-        return None
 
 
 def _detect_market(market_name: str | None) -> Market | None:

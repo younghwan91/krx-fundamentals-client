@@ -11,6 +11,8 @@ KRX에서 전 종목 투자지표를 한 번에 받아와 가치주/배당주 �
 
 from __future__ import annotations
 
+from _display import fmt, print_header, print_table
+
 from krx_fundamentals_client import (
     InvestmentRatio,
     KrxScraper,
@@ -19,31 +21,6 @@ from krx_fundamentals_client import (
     rank_stocks,
     screen_stocks,
 )
-
-
-def print_header(title: str) -> None:
-    print(f"\n{'=' * 72}")
-    print(f"  {title}")
-    print(f"{'=' * 72}")
-
-
-def print_table(headers: list[str], rows: list[list[str]], widths: list[int]) -> None:
-    header_line = " | ".join(h.center(w) for h, w in zip(headers, widths))
-    separator = "-+-".join("-" * w for w in widths)
-    print(f"  {header_line}")
-    print(f"  {separator}")
-    for row in rows:
-        cells = (
-            str(v).rjust(w) if i > 0 else str(v).ljust(w)
-            for i, (v, w) in enumerate(zip(row, widths))
-        )
-        print(f"  {' | '.join(cells)}")
-
-
-def fmt(value: float | None, suffix: str = "", decimal: int = 2) -> str:
-    if value is None:
-        return "-"
-    return f"{value:,.{decimal}f}{suffix}"
 
 
 def display_ratios(title: str, ratios: list[InvestmentRatio], limit: int = 10) -> None:
@@ -95,9 +72,7 @@ async def main() -> None:
     top_roe = rank_stocks(ratios, RankingMetric.ROE)
     display_ratios("📈 ROE 상위", top_roe)
 
-    print(f"\n{'=' * 72}")
-    print(f"  ✅ 스크리닝 완료! (전체 {len(ratios)}종목 중 계산)")
-    print(f"{'=' * 72}")
+    print_header(f"✅ 스크리닝 완료! (전체 {len(ratios)}종목 중 계산)")
 
 
 if __name__ == "__main__":

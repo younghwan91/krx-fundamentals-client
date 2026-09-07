@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
 from dataclasses import dataclass
 from datetime import datetime
+
+from _display import fmt, print_header, print_table, require_dart_api_key
 
 from krx_fundamentals_client import DartScraper, Dividend, InvestmentRatio, NaverScraper
 
@@ -27,6 +27,8 @@ PORTFOLIO: list[tuple[str, str]] = [
     ("005380", "현대차"),
 ]
 
+HEADER_WIDTH = 76
+
 
 @dataclass
 class StockData:
@@ -34,31 +36,6 @@ class StockData:
     name: str
     ratio: InvestmentRatio | None = None
     dividend: Dividend | None = None
-
-
-def print_header(title: str) -> None:
-    print(f"\n{'=' * 76}")
-    print(f"  {title}")
-    print(f"{'=' * 76}")
-
-
-def print_table(headers: list[str], rows: list[list[str]], widths: list[int]) -> None:
-    header_line = " | ".join(h.center(w) for h, w in zip(headers, widths))
-    separator = "-+-".join("-" * w for w in widths)
-    print(f"  {header_line}")
-    print(f"  {separator}")
-    for row in rows:
-        line = " | ".join(
-            str(v).rjust(w) if i > 0 else str(v).ljust(w)
-            for i, (v, w) in enumerate(zip(row, widths))
-        )
-        print(f"  {line}")
-
-
-def fmt(value: float | None, suffix: str = "", decimal: int = 2) -> str:
-    if value is None:
-        return "-"
-    return f"{value:,.{decimal}f}{suffix}"
 
 
 async def fetch_stock_data(
@@ -72,7 +49,7 @@ async def fetch_stock_data(
 
 
 def display_ratio_table(stocks: list[StockData]) -> None:
-    print_header("📊 포트폴리오 투자 지표")
+    print_header("📊 포트폴리오 투자 지표", width=HEADER_WIDTH)
     headers = ["종목명", "현재가", "시가총액", "PER", "PBR", "배당률", "외국인"]
     widths = [10, 10, 10, 8, 8, 8, 8]
     rows = []
@@ -91,7 +68,7 @@ def display_ratio_table(stocks: list[StockData]) -> None:
 
 
 def display_dividend_history(stocks: list[StockData]) -> None:
-    print_header("💰 배당 정보")
+    print_header("💰 배당 정보", width=HEADER_WIDTH)
     for s in stocks:
         if s.dividend is None:
             print(f"\n  {s.name} ({s.ticker}): 배당 데이터 없음")
@@ -104,7 +81,7 @@ def display_dividend_history(stocks: list[StockData]) -> None:
 
 
 def display_portfolio_averages(stocks: list[StockData]) -> None:
-    print_header("📋 포트폴리오 평균")
+    print_header("📋 포트폴리오 평균", width=HEADER_WIDTH)
     metrics = [("PER", "per", "배"), ("PBR", "pbr", "배"), ("배당수익률", "dividend_yield", "%")]
     for label, attr, unit in metrics:
         values = [
@@ -119,10 +96,7 @@ def display_portfolio_averages(stocks: list[StockData]) -> None:
 
 
 async def main() -> None:
-    api_key = os.environ.get("DART_API_KEY", "")
-    if not api_key:
-        print("❌ DART_API_KEY 환경변수를 설정하세요 (https://opendart.fss.or.kr)")
-        sys.exit(1)
+    api_key = require_dart_api_key()
 
     year = datetime.now().year - 1
     naver = NaverScraper()
@@ -144,9 +118,7 @@ async def main() -> None:
         await naver.close()
         await dart.close()
 
-    print(f"\n{'=' * 76}")
-    print("  ✅ 포트폴리오 분석 완료!")
-    print(f"{'=' * 76}")
+    print_header("✅ 포트폴리오 분석 완료!", width=HEADER_WIDTH)
 
 
 if __name__ == "__main__":
