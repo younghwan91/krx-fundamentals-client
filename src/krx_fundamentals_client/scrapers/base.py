@@ -10,6 +10,26 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
+def parse_float(value: object) -> float | None:
+    """쉼표 포함 숫자 문자열(또는 float/int)을 float으로 변환. 빈 값/``-``/``N/A``는 None."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text in ("", "-", "N/A"):
+        return None
+    try:
+        return float(text.replace(",", ""))
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_int(value: object, default: int | None = None) -> int | None:
+    """쉼표 포함 숫자 문자열(또는 float/int)을 int로 변환. 실패 시 ``default``."""
+    parsed = parse_float(value)
+    return default if parsed is None else int(parsed)
+
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 Safari/605.1.15",
@@ -47,43 +67,30 @@ class BaseScraper(ABC):
         delay = random.uniform(self.min_delay, self.max_delay)
         await asyncio.sleep(delay)
 
-    async def fetch(self, url: str, **kwargs) -> httpx.Response:
+    async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         client = await self.get_client()
         last_exc: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
                 await self._throttle()
-                resp = await client.get(url, **kwargs)
+                resp = await client.request(method, url, **kwargs)
                 resp.raise_for_status()
                 return resp
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
                 last_exc = e
                 wait = 2**attempt + random.random()
                 logger.warning(
-                    "[%s] Fetch %s attempt %d failed: %s, retry in %.1fs",
-                    self.source, url, attempt, e, wait,
+                    "[%s] %s %s attempt %d failed: %s, retry in %.1fs",
+                    self.source, method, url, attempt, e, wait,
                 )
                 await asyncio.sleep(wait)
         raise last_exc  # type: ignore[misc]
 
+    async def fetch(self, url: str, **kwargs) -> httpx.Response:
+        return await self._request("GET", url, **kwargs)
+
     async def fetch_post(self, url: str, **kwargs) -> httpx.Response:
-        client = await self.get_client()
-        last_exc: Exception | None = None
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                await self._throttle()
-                resp = await client.post(url, **kwargs)
-                resp.raise_for_status()
-                return resp
-            except (httpx.HTTPStatusError, httpx.RequestError) as e:
-                last_exc = e
-                wait = 2**attempt + random.random()
-                logger.warning(
-                    "[%s] POST %s attempt %d failed: %s, retry in %.1fs",
-                    self.source, url, attempt, e, wait,
-                )
-                await asyncio.sleep(wait)
-        raise last_exc  # type: ignore[misc]
+        return await self._request("POST", url, **kwargs)
 
     @staticmethod
     def make_id(source: str, unique_key: str) -> str:

@@ -17,7 +17,7 @@ from krx_fundamentals_client.models.schemas import (
     Shareholder,
     SharesOutstanding,
 )
-from krx_fundamentals_client.scrapers.base import BaseScraper
+from krx_fundamentals_client.scrapers.base import BaseScraper, parse_float, parse_int
 
 logger = logging.getLogger(__name__)
 
@@ -74,36 +74,6 @@ SHARES_REPORT_FALLBACK: tuple[ReportType, ...] = (
 MULTI_BATCH_SIZE = 100
 
 
-def _parse_amount(value: str | None) -> float | None:
-    """쉼표가 포함된 금액 문자열을 float으로 변환."""
-    if not value or value.strip() in ("", "-"):
-        return None
-    try:
-        return float(value.replace(",", ""))
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_int(value: str | None) -> int:
-    """쉼표가 포함된 정수 문자열을 int로 변환."""
-    if not value or value.strip() in ("", "-"):
-        return 0
-    try:
-        return int(value.replace(",", ""))
-    except (ValueError, TypeError):
-        return 0
-
-
-def _parse_float(value: str | None) -> float | None:
-    """쉼표가 포함된 실수 문자열을 float으로 변환."""
-    if not value or value.strip() in ("", "-"):
-        return None
-    try:
-        return float(value.replace(",", ""))
-    except (ValueError, TypeError):
-        return None
-
-
 #: 전년동기 절대값(frmtrm_amount)과 YoY(%)를 함께 채우는 손익계산서 항목.
 #: 자산총계 등 대차대조표 항목은 "전기" 의미가 달라 대상에서 제외한다.
 YOY_FIELDS: tuple[str, ...] = ("revenue", "operating_income", "net_income")
@@ -133,12 +103,35 @@ def _parse_financial_rows(rows: list[dict]) -> dict[str, float | None]:
             continue
         if field in values and fs_div == "OFS":
             continue
-        values[field] = _parse_amount(row.get("thstrm_amount"))
+        values[field] = parse_float(row.get("thstrm_amount"))
         if field in YOY_FIELDS:
-            values[f"{field}_prior"] = _parse_amount(row.get("frmtrm_amount"))
+            values[f"{field}_prior"] = parse_float(row.get("frmtrm_amount"))
     for field in YOY_FIELDS:
         values[f"{field}_yoy"] = _calc_yoy(values.get(field), values.get(f"{field}_prior"))
     return values
+
+
+def _build_financial_statement(
+    ticker: str, year: int, report_type: ReportType, values: dict[str, float | None],
+) -> FinancialStatement:
+    """``_parse_financial_rows``의 결과를 :class:`FinancialStatement`로 조립."""
+    return FinancialStatement(
+        ticker=ticker,
+        year=year,
+        report_type=report_type,
+        revenue=values.get("revenue"),
+        operating_income=values.get("operating_income"),
+        net_income=values.get("net_income"),
+        total_assets=values.get("total_assets"),
+        total_liabilities=values.get("total_liabilities"),
+        total_equity=values.get("total_equity"),
+        revenue_prior=values.get("revenue_prior"),
+        operating_income_prior=values.get("operating_income_prior"),
+        net_income_prior=values.get("net_income_prior"),
+        revenue_yoy=values.get("revenue_yoy"),
+        operating_income_yoy=values.get("operating_income_yoy"),
+        net_income_yoy=values.get("net_income_yoy"),
+    )
 
 
 def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
@@ -151,7 +144,7 @@ def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
     for row in rows:
         if (row.get("se") or "").strip() != "보통주":
             continue
-        istc_totqy = _parse_int(row.get("istc_totqy"))
+        istc_totqy = parse_int(row.get("istc_totqy"), default=0)
         if istc_totqy <= 0:
             continue
         return istc_totqy, (row.get("stlm_dt") or "").strip(), (row.get("rcept_no") or "").strip()
@@ -278,15 +271,22 @@ class DartScraper(BaseScraper):
             logger.debug("[dart] No corp_code found for ticker=%s", ticker)
         return code
 
+    async def _require_corp_code(self, ticker: str) -> str | None:
+        """API 키가 설정돼 있고 corp_code를 찾을 수 있을 때만 그 값을 반환.
+
+        둘 중 하나라도 아니면 ``None`` — 호출부는 각자의 빈 반환값으로
+        조기 반환하면 된다.
+        """
+        if not self._check_api_key():
+            return None
+        return await self._get_corp_code(ticker)
+
     # ------------------------------------------------------------------
     # 2. Company Info (기업개황)
     # ------------------------------------------------------------------
 
     async def fetch_company(self, ticker: str) -> Company | None:
-        if not self._check_api_key():
-            return None
-
-        corp_code = await self._get_corp_code(ticker)
+        corp_code = await self._require_corp_code(ticker)
         if not corp_code:
             return None
 
@@ -337,10 +337,7 @@ class DartScraper(BaseScraper):
         report_type: ReportType = ReportType.ANNUAL,
         on_status: Callable[[str, str], None] | None = None,
     ) -> FinancialStatement | None:
-        if not self._check_api_key():
-            return None
-
-        corp_code = await self._get_corp_code(ticker)
+        corp_code = await self._require_corp_code(ticker)
         if not corp_code:
             return None
 
@@ -369,24 +366,7 @@ class DartScraper(BaseScraper):
             return None
 
         values = _parse_financial_rows(data.get("list", []))
-
-        return FinancialStatement(
-            ticker=ticker,
-            year=year,
-            report_type=report_type,
-            revenue=values.get("revenue"),
-            operating_income=values.get("operating_income"),
-            net_income=values.get("net_income"),
-            total_assets=values.get("total_assets"),
-            total_liabilities=values.get("total_liabilities"),
-            total_equity=values.get("total_equity"),
-            revenue_prior=values.get("revenue_prior"),
-            operating_income_prior=values.get("operating_income_prior"),
-            net_income_prior=values.get("net_income_prior"),
-            revenue_yoy=values.get("revenue_yoy"),
-            operating_income_yoy=values.get("operating_income_yoy"),
-            net_income_yoy=values.get("net_income_yoy"),
-        )
+        return _build_financial_statement(ticker, year, report_type, values)
 
     async def fetch_financials_batch(
         self,
@@ -458,23 +438,7 @@ class DartScraper(BaseScraper):
                 if not rows:
                     continue
                 values = _parse_financial_rows(rows)
-                result[ticker] = FinancialStatement(
-                    ticker=ticker,
-                    year=year,
-                    report_type=report_type,
-                    revenue=values.get("revenue"),
-                    operating_income=values.get("operating_income"),
-                    net_income=values.get("net_income"),
-                    total_assets=values.get("total_assets"),
-                    total_liabilities=values.get("total_liabilities"),
-                    total_equity=values.get("total_equity"),
-                    revenue_prior=values.get("revenue_prior"),
-                    operating_income_prior=values.get("operating_income_prior"),
-                    net_income_prior=values.get("net_income_prior"),
-                    revenue_yoy=values.get("revenue_yoy"),
-                    operating_income_yoy=values.get("operating_income_yoy"),
-                    net_income_yoy=values.get("net_income_yoy"),
-                )
+                result[ticker] = _build_financial_statement(ticker, year, report_type, values)
 
         return result
 
@@ -497,10 +461,7 @@ class DartScraper(BaseScraper):
         시점이다 — 그 수치가 가리키는 날과 그걸 알게 된 날을 구분해야 하는
         point-in-time 용도로 둘 다 남긴다.
         """
-        if not self._check_api_key():
-            return None
-
-        corp_code = await self._get_corp_code(ticker)
+        corp_code = await self._require_corp_code(ticker)
         if not corp_code:
             return None
 
@@ -549,10 +510,7 @@ class DartScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     async def fetch_dividends(self, ticker: str, year: int) -> Dividend | None:
-        if not self._check_api_key():
-            return None
-
-        corp_code = await self._get_corp_code(ticker)
+        corp_code = await self._require_corp_code(ticker)
         if not corp_code:
             return None
 
@@ -588,11 +546,11 @@ class DartScraper(BaseScraper):
             thstrm = item.get("thstrm", "")
 
             if "주당" in se and dividend_per_share is None:
-                dividend_per_share = _parse_float(thstrm)
+                dividend_per_share = parse_float(thstrm)
             elif "배당수익률" in se and dividend_yield is None:
-                dividend_yield = _parse_float(thstrm)
+                dividend_yield = parse_float(thstrm)
             elif "배당성향" in se and payout_ratio is None:
-                payout_ratio = _parse_float(thstrm)
+                payout_ratio = parse_float(thstrm)
 
         return Dividend(
             ticker=ticker,
@@ -607,10 +565,7 @@ class DartScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     async def fetch_shareholders(self, ticker: str, year: int) -> list[Shareholder]:
-        if not self._check_api_key():
-            return []
-
-        corp_code = await self._get_corp_code(ticker)
+        corp_code = await self._require_corp_code(ticker)
         if not corp_code:
             return []
 
@@ -644,8 +599,8 @@ class DartScraper(BaseScraper):
                 Shareholder(
                     ticker=ticker,
                     name=name,
-                    shares=_parse_int(item.get("trmend_posesn_stock_co")),
-                    ownership_pct=_parse_float(item.get("trmend_posesn_stock_qota_rt")) or 0.0,
+                    shares=parse_int(item.get("trmend_posesn_stock_co"), default=0),
+                    ownership_pct=parse_float(item.get("trmend_posesn_stock_qota_rt")) or 0.0,
                     report_date=f"{year}",
                 )
             )
@@ -656,10 +611,7 @@ class DartScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     async def fetch_executives(self, ticker: str, year: int) -> list[Executive]:
-        if not self._check_api_key():
-            return []
-
-        corp_code = await self._get_corp_code(ticker)
+        corp_code = await self._require_corp_code(ticker)
         if not corp_code:
             return []
 

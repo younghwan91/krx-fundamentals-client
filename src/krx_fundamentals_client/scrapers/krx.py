@@ -11,6 +11,8 @@ from krx_fundamentals_client.models.schemas import (
     SectorOverview,
 )
 from krx_fundamentals_client.scrapers.base import BaseScraper
+from krx_fundamentals_client.scrapers.base import parse_float as _parse_float
+from krx_fundamentals_client.scrapers.base import parse_int as _parse_int
 
 logger = logging.getLogger(__name__)
 
@@ -33,24 +35,6 @@ def _recent_business_day() -> str:
     elif weekday == 6:  # Sunday
         today -= timedelta(days=2)
     return today.strftime("%Y%m%d")
-
-
-def _parse_float(value: str) -> float | None:
-    if not value or value.strip() in ("", "-", "N/A"):
-        return None
-    try:
-        return float(value.strip().replace(",", ""))
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_int(value: str) -> int | None:
-    if not value or value.strip() in ("", "-", "N/A"):
-        return None
-    try:
-        return int(value.strip().replace(",", ""))
-    except (ValueError, TypeError):
-        return None
 
 
 def _decode_csv(content: bytes) -> str:
@@ -104,6 +88,21 @@ class KrxScraper(BaseScraper):
         )
         return _decode_csv(resp.content)
 
+    async def _fetch_stat_csv(
+        self, url_code: str, extra_params: dict,
+    ) -> tuple[list[str], list[list[str]]]:
+        """MDCSTAT 통계 CSV를 OTP 2단계로 내려받아 (headers, rows)로 반환."""
+        params = {
+            "locale": "ko_KR",
+            "csvxls_isNo": "false",
+            "name": "fileDown",
+            "url": url_code,
+            **extra_params,
+        }
+        otp = await self._get_otp(params)
+        text = await self._download_csv(otp)
+        return _parse_csv_rows(text)
+
     # ------------------------------------------------------------------ #
     #  PER / PBR / 배당수익률
     # ------------------------------------------------------------------ #
@@ -118,19 +117,10 @@ class KrxScraper(BaseScraper):
             logger.warning("[krx] Unsupported market for ratios: %s", market)
             return []
 
-        params = {
-            "locale": "ko_KR",
-            "mktId": mkt_id,
-            "trdDd": date,
-            "share": "1",
-            "money": "1",
-            "csvxls_isNo": "false",
-            "name": "fileDown",
-            "url": "dbms/MDC/STAT/standard/MDCSTAT03501",
-        }
-        otp = await self._get_otp(params)
-        text = await self._download_csv(otp)
-        headers, rows = _parse_csv_rows(text)
+        headers, rows = await self._fetch_stat_csv(
+            "dbms/MDC/STAT/standard/MDCSTAT03501",
+            {"mktId": mkt_id, "trdDd": date, "share": "1", "money": "1"},
+        )
         if not rows:
             logger.warning("[krx] No ratio data for %s on %s", market, date)
             return []
@@ -182,19 +172,10 @@ class KrxScraper(BaseScraper):
             logger.warning("[krx] Unsupported market for market-cap: %s", market)
             return {}
 
-        params = {
-            "locale": "ko_KR",
-            "mktId": mkt_id,
-            "trdDd": date,
-            "share": "1",
-            "money": "1",
-            "csvxls_isNo": "false",
-            "name": "fileDown",
-            "url": "dbms/MDC/STAT/standard/MDCSTAT01501",
-        }
-        otp = await self._get_otp(params)
-        text = await self._download_csv(otp)
-        headers, rows = _parse_csv_rows(text)
+        headers, rows = await self._fetch_stat_csv(
+            "dbms/MDC/STAT/standard/MDCSTAT01501",
+            {"mktId": mkt_id, "trdDd": date, "share": "1", "money": "1"},
+        )
         if not rows:
             logger.warning("[krx] No market-cap data for %s on %s", market, date)
             return {}
@@ -255,19 +236,10 @@ class KrxScraper(BaseScraper):
             logger.warning("[krx] Unsupported market for listed-shares: %s", market)
             return {}
 
-        params = {
-            "locale": "ko_KR",
-            "mktId": mkt_id,
-            "trdDd": date,
-            "share": "1",
-            "money": "1",
-            "csvxls_isNo": "false",
-            "name": "fileDown",
-            "url": "dbms/MDC/STAT/standard/MDCSTAT01501",
-        }
-        otp = await self._get_otp(params)
-        text = await self._download_csv(otp)
-        headers, rows = _parse_csv_rows(text)
+        headers, rows = await self._fetch_stat_csv(
+            "dbms/MDC/STAT/standard/MDCSTAT01501",
+            {"mktId": mkt_id, "trdDd": date, "share": "1", "money": "1"},
+        )
         if not rows:
             logger.warning("[krx] No listed-shares data for %s on %s", market, date)
             return {}
@@ -303,17 +275,10 @@ class KrxScraper(BaseScraper):
         """KSE 업종별 시세를 수집한다."""
         date = trd_dd or _recent_business_day()
 
-        params = {
-            "locale": "ko_KR",
-            "indTpCd": "1",
-            "trdDd": date,
-            "csvxls_isNo": "false",
-            "name": "fileDown",
-            "url": "dbms/MDC/STAT/standard/MDCSTAT03901",
-        }
-        otp = await self._get_otp(params)
-        text = await self._download_csv(otp)
-        headers, rows = _parse_csv_rows(text)
+        headers, rows = await self._fetch_stat_csv(
+            "dbms/MDC/STAT/standard/MDCSTAT03901",
+            {"indTpCd": "1", "trdDd": date},
+        )
         if not rows:
             logger.warning("[krx] No sector data for %s", date)
             return []
@@ -323,7 +288,9 @@ class KrxScraper(BaseScraper):
 
         for row in rows:
             try:
-                sector_name = row[col.get("업종명", 0)].strip()  # type: ignore[arg-type]
+                if "업종명" not in col:
+                    continue
+                sector_name = row[col["업종명"]].strip()
                 if not sector_name:
                     continue
                 results.append(
