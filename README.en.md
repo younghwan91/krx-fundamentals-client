@@ -3,8 +3,6 @@
 [![CI](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml/badge.svg)](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/younghwan91/krx-fundamentals-client?style=social)](https://github.com/younghwan91/krx-fundamentals-client)
-[![GitHub forks](https://img.shields.io/github/forks/younghwan91/krx-fundamentals-client?style=social)](https://github.com/younghwan91/krx-fundamentals-client)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-younghwan--chae-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/younghwan-chae/)
 
 [한국어](README.md)
@@ -135,13 +133,11 @@ Apache-2.0 ([LICENSE](LICENSE))
 
 **Younghwan Chae** · [GitHub @younghwan91](https://github.com/younghwan91) · [LinkedIn](https://www.linkedin.com/in/younghwan-chae/)
 
-## ⭐ Star History & Support
+## Contributing & Issues
 
-[![Star History Chart](https://api.star-history.com/svg?repos=younghwan91/krx-fundamentals-client&type=Date)](https://star-history.com/#younghwan91/krx-fundamentals-client&Date)
-
-If you find this library useful for fetching Korean equity fundamentals, please consider giving it a **[⭐ Star](https://github.com/younghwan91/krx-fundamentals-client)** on GitHub!
 - 🐛 Bugs & questions → [Issues](https://github.com/younghwan91/krx-fundamentals-client/issues)
 - 📈 Updates → [Follow @younghwan91](https://github.com/younghwan91)
+
 
 ## Related projects — open-source quant stack
 

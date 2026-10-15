@@ -3,8 +3,6 @@
 [![CI](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml/badge.svg)](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/younghwan91/krx-fundamentals-client?style=social)](https://github.com/younghwan91/krx-fundamentals-client)
-[![GitHub forks](https://img.shields.io/github/forks/younghwan91/krx-fundamentals-client?style=social)](https://github.com/younghwan91/krx-fundamentals-client)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-younghwan--chae-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/younghwan-chae/)
 
 [English](README.en.md)
@@ -163,14 +161,11 @@ Apache-2.0 ([LICENSE](LICENSE))
 
 **채영환 (Younghwan Chae)** · [GitHub @younghwan91](https://github.com/younghwan91) · [LinkedIn](https://www.linkedin.com/in/younghwan-chae/)
 
-## ⭐ 도움이 되셨다면 (Star & 기여)
+## 기여 및 이슈 제보
 
-[![Star History Chart](https://api.star-history.com/svg?repos=younghwan91/krx-fundamentals-client&type=Date)](https://star-history.com/#younghwan91/krx-fundamentals-client&Date)
-
-`krx-fundamentals-client`가 재무 데이터 수집 및 퀀트 분석에 유용하셨다면 우측 상단의 **[⭐ Star](https://github.com/younghwan91/krx-fundamentals-client)** 를 눌러주세요!
-- 복잡한 DART·KRX·네이버 크롤링 없이 오픈소스로 한국 기업 펀더멘탈을 추출하는 데 큰 도움이 됩니다.
-- 🐛 버그 제보 & 질문: [GitHub Issues](https://github.com/younghwan91/krx-fundamentals-client/issues)
+- 🐛 버그 제보, 질문, 기능 제안: [GitHub Issues](https://github.com/younghwan91/krx-fundamentals-client/issues)
 - 📈 업데이트 소식: [팔로우 @younghwan91](https://github.com/younghwan91)
+
 
 ## 관련 프로젝트 — 오픈소스 퀀트 스택
 
