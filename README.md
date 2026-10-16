@@ -23,6 +23,8 @@ pip install krx-fundamentals-client
 
 ## 빠른 시작
 
+### 1. DART 기업 정보 및 재무제표 (API 키 무료 발급)
+
 ```python
 import asyncio
 from krx_fundamentals_client import DartScraper
@@ -34,27 +36,36 @@ async def main():
         print(company.name, company.ceo)
 
         financials = await scraper.fetch_financials("005930", year=2025)
-        print(financials.revenue, financials.operating_income)
+        print(f"매출액: {financials.revenue:,} / 영업이익: {financials.operating_income:,}")
     finally:
         await scraper.close()
 
 asyncio.run(main())
 ```
 
-시장 전체 투자지표와 랭킹/스크리닝:
+### 2. 네이버 금융 투자지표 및 스크리닝 (API 키 불필요)
+
+KRX 공식 수집 경로가 로그인 차단 중인 동안, `NaverScraper`로 PER·PBR·배당수익률·시가총액을 키 없이 즉시 수집하고 스크리닝할 수 있습니다:
 
 ```python
-from krx_fundamentals_client import KrxScraper, Market, RankingMetric, rank_stocks, screen_stocks
+import asyncio
+from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
 
-async def screen():
-    scraper = KrxScraper()
+async def main():
+    scraper = NaverScraper()
     try:
-        ratios = await scraper.fetch_investment_ratios(Market.KOSPI)
+        # 단일 종목 투자지표
+        ratio = await scraper.fetch_stock_info("005930")
+        print(f"삼성전자 PER: {ratio.per}, PBR: {ratio.pbr}, 배당수익률: {ratio.dividend_yield}%")
+
+        # 종목군 배치 수집 후 스크리닝 & 랭킹
+        ratios = await scraper.fetch_batch(["005930", "000660", "035420", "005380"])
+        value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
+        top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
     finally:
         await scraper.close()
 
-    value_stocks = screen_stocks(ratios, per_max=10, pbr_max=1.0)
-    top_by_roe = rank_stocks(ratios, RankingMetric.ROE)
+asyncio.run(main())
 ```
 
 배치 조회·키 순환 같은 실전 패턴은 아래 [고급 사용법](#고급-사용법)에, 바로 돌려볼 수 있는

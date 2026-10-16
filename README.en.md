@@ -26,6 +26,8 @@ pip install krx-fundamentals-client
 
 ## Quick start
 
+### 1. DART Company Info & Financials (Free API Key)
+
 ```python
 import asyncio
 from krx_fundamentals_client import DartScraper
@@ -37,27 +39,36 @@ async def main():
         print(company.name, company.ceo)
 
         financials = await scraper.fetch_financials("005930", year=2025)
-        print(financials.revenue, financials.operating_income)
+        print(f"Revenue: {financials.revenue:,} / Operating Income: {financials.operating_income:,}")
     finally:
         await scraper.close()
 
 asyncio.run(main())
 ```
 
-Market-wide ratios plus ranking/screening:
+### 2. Naver Finance Valuation & Screening (No API Key Required)
+
+While the KRX scraper is temporarily blocked by upstream login walls, `NaverScraper` fetches PER, PBR, dividend yield, and market cap without requiring any credentials:
 
 ```python
-from krx_fundamentals_client import KrxScraper, Market, RankingMetric, rank_stocks, screen_stocks
+import asyncio
+from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
 
-async def screen():
-    scraper = KrxScraper()
+async def main():
+    scraper = NaverScraper()
     try:
-        ratios = await scraper.fetch_investment_ratios(Market.KOSPI)
+        # Single-stock valuation ratios
+        ratio = await scraper.fetch_stock_info("005930")
+        print(f"Samsung Elec PER: {ratio.per}, PBR: {ratio.pbr}, Div Yield: {ratio.dividend_yield}%")
+
+        # Batch collection and value screening
+        ratios = await scraper.fetch_batch(["005930", "000660", "035420", "005380"])
+        value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
+        top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
     finally:
         await scraper.close()
 
-    value_stocks = screen_stocks(ratios, per_max=10, pbr_max=1.0)
-    top_by_roe = rank_stocks(ratios, RankingMetric.ROE)
+asyncio.run(main())
 ```
 
 Financials for many tickers at once (DART's `fnlttMultiAcnt` batch endpoint, up to 100 tickers per call):
