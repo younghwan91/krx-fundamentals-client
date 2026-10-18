@@ -1,0 +1,120 @@
+{
+  "ticker": "005930",
+  "name_en": "Samsung Electronics",
+  "name_en_dart": "SAMSUNG ELECTRONICS CO,.LTD",
+  "fetched": "2026-10-19",
+  "statements": [
+    {
+      "year": 2018,
+      "revenue": 243771415000000.0,
+      "operating_income": 58886669000000.0,
+      "net_income": 44344857000000.0,
+      "total_assets": 339357244000000.0,
+      "total_liabilities": 91604067000000.0,
+      "total_equity": 247753177000000.0,
+      "revenue_yoy": 1.7514483625395625,
+      "operating_income_yoy": 9.770952161502803,
+      "net_income_yoy": 5.115611307977835
+    },
+    {
+      "year": 2019,
+      "revenue": 230400881000000.0,
+      "operating_income": 27768509000000.0,
+      "net_income": 21738865000000.0,
+      "total_assets": 352564497000000.0,
+      "total_liabilities": 89684076000000.0,
+      "total_equity": 262880421000000.0,
+      "revenue_yoy": -5.48486540146637,
+      "operating_income_yoy": -52.844150515628584,
+      "net_income_yoy": -50.97770864386821
+    },
+    {
+      "year": 2020,
+      "revenue": 236806988000000.0,
+      "operating_income": 35993876000000.0,
+      "net_income": 26407832000000.0,
+      "total_assets": 378235718000000.0,
+      "total_liabilities": 102287702000000.0,
+      "total_equity": 275948016000000.0,
+      "revenue_yoy": 2.7804177536977384,
+      "operating_income_yoy": 29.62120508522802,
+      "net_income_yoy": 21.47751044040248
+    },
+    {
+      "year": 2021,
+      "revenue": 279604799000000.0,
+      "operating_income": 51633856000000.0,
+      "net_income": 39907450000000.0,
+      "total_assets": 426621158000000.0,
+      "total_liabilities": 121721227000000.0,
+      "total_equity": 304899931000000.0,
+      "revenue_yoy": 18.072866582805403,
+      "operating_income_yoy": 43.45178051955283,
+      "net_income_yoy": 51.119751140494984
+    },
+    {
+      "year": 2022,
+      "revenue": 302231360000000.0,
+      "operating_income": 43376630000000.0,
+      "net_income": 55654077000000.0,
+      "total_assets": 448424507000000.0,
+      "total_liabilities": 93674903000000.0,
+      "total_equity": 354749604000000.0,
+      "revenue_yoy": 8.092336426600461,
+      "operating_income_yoy": -15.991883310051453,
+      "net_income_yoy": 39.45786313081893
+    },
+    {
+      "year": 2023,
+      "revenue": 258935494000000.0,
+      "operating_income": 6566976000000.0,
+      "net_income": 15487100000000.0,
+      "total_assets": 455905980000000.0,
+      "total_liabilities": 92228115000000.0,
+      "total_equity": 363677865000000.0,
+      "revenue_yoy": -14.325404881875926,
+      "operating_income_yoy": -84.86056662308712,
+      "net_income_yoy": -72.17256877694692
+    },
+    {
+      "year": 2024,
+      "revenue": 300870903000000.0,
+      "operating_income": 32725961000000.0,
+      "net_income": 34451351000000.0,
+      "total_assets": 514531948000000.0,
+      "total_liabilities": 112339878000000.0,
+      "total_equity": 402192070000000.0,
+      "revenue_yoy": 16.195311176612968,
+      "operating_income_yoy": 398.3414131557661,
+      "net_income_yoy": 122.45191804792374
+    },
+    {
+      "year": 2025,
+      "revenue": 333605938000000.0,
+      "operating_income": 43601051000000.0,
+      "net_income": 45206805000000.0,
+      "total_assets": 566942110000000.0,
+      "total_liabilities": 130621773000000.0,
+      "total_equity": 436320337000000.0,
+      "revenue_yoy": 10.880093313642895,
+      "operating_income_yoy": 33.230773574533075,
+      "net_income_yoy": 31.219251750098277
+    }
+  ],
+  "shares": {
+    "year": 2025,
+    "shares_outstanding": 5919637922,
+    "stlm_dt": "2025-12-31"
+  },
+  "dividend": null,
+  "ratio": {
+    "market_cap": null,
+    "per": null,
+    "pbr": null,
+    "eps": null,
+    "bps": null,
+    "dividend_yield": null,
+    "price": 217000.0,
+    "foreign_ratio": null
+  }
+}

@@ -5,6 +5,11 @@
 [![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-younghwan--chae-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/younghwan-chae/)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img alt="Eight years of Samsung Electronics consolidated revenue and operating income from DART, plus shares outstanding and last price, fetched through the library into one schema" src="docs/images/hero-light.png" width="100%">
+</picture>
+
 [한국어](README.md)
 
 **A Python client library that pulls Korean corporate fundamentals from DART, KRX and Naver Finance into one schema** — financial statements, valuation ratios, dividends, major shareholders, executives, and stock screening.

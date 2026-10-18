@@ -5,6 +5,11 @@
 [![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-younghwan--chae-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/younghwan-chae/)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img alt="삼성전자 한 종목의 DART 연결 재무제표 8개년(매출·영업이익)과 발행주식수·현재가를 라이브러리로 받아 한 스키마로 그린 그림" src="docs/images/hero-light.png" width="100%">
+</picture>
+
 [English](README.en.md)
 
 **DART·KRX·네이버 금융에서 국내 기업 펀더멘탈을 모아 하나의 스키마로 내주는 Python 클라이언트 라이브러리** — 재무제표, 투자지표, 배당, 대주주, 임원, 종목 스크리닝.
