@@ -1,5 +1,7 @@
 # krx-fundamentals-client
 
+**Korean corporate fundamentals from DART, KRX and Naver as Pydantic models — a Python library, no server, one pip line.**
+
 [![CI](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml/badge.svg)](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
@@ -12,86 +14,76 @@
 
 [한국어](README.md)
 
-**A Python client library that pulls Korean corporate fundamentals from DART, KRX and Naver Finance into one schema** — financial statements, valuation ratios, dividends, major shareholders, executives, and stock screening.
+- Every number above is a library return value or a ratio of two (operating margin): Samsung Electronics consolidated statements FY2018 to FY2025, straight from `fetch_financials` ([hero-data.json](docs/images/hero-data.json)).
+- No standing server, cache or scheduler. Four dependencies (httpx, beautifulsoup4, lxml, pydantic); each call hits the source directly.
+- A spent DART daily quota raises `DartQuotaExceededError`, so it never masquerades as "no data".
 
-Same shape as [kiwoom-client](https://github.com/younghwan91/kiwoom-client) and [krx-news-client](https://github.com/younghwan91/krx-news-client) — no standing server. It hits the upstream source directly, in-process, whenever you call it, and hands back normalized results.
-
-> ⛔ **The KRX collection path is currently blocked (measured 2026-08).**
-> KRX put a login in front of the MDCSTAT endpoints, and OTP issuance now returns `LOGOUT` instead of a
-> token. The scraper treats that string as a valid OTP and passes it along, so it **returns an empty
-> list and raises nothing**. Everything KRX fills — valuation ratios, market cap, sectors — goes quietly
-> empty (the top 100 tickers can be backfilled with `NaverScraper`; the DART path is unaffected).
-> Code walkthrough: [docs/krx-blocked.md](docs/krx-blocked.md) (Korean).
-
-## Install
-
-```bash
-pip install krx-fundamentals-client
-```
+> ⛔ **The KRX path is blocked (measured 2026-08).** KRX put a login in front of its endpoints and `KrxScraper` now returns an empty list without raising.
+> The DART path is unaffected; the last price comes from `NaverScraper`. Walkthrough: [docs/krx-blocked.md](docs/krx-blocked.md) (Korean).
 
 ## Quick start
 
-### 1. DART Company Info & Financials (Free API Key)
+Not on PyPI yet; install from git:
+
+```bash
+pip install git+https://github.com/younghwan91/krx-fundamentals-client
+```
+
+Get a free DART key at [opendart.fss.or.kr](https://opendart.fss.or.kr). Eight years of one company's statements, exactly what the hero shows:
 
 ```python
 import asyncio
 from krx_fundamentals_client import DartScraper
 
 async def main():
-    scraper = DartScraper(api_key="...")  # free key at https://opendart.fss.or.kr
+    dart = DartScraper(api_key="...")
     try:
-        company = await scraper.fetch_company("005930")
+        company = await dart.fetch_company("005930")
         print(company.name, company.ceo)
-
-        financials = await scraper.fetch_financials("005930", year=2025)
-        print(f"Revenue: {financials.revenue:,} / Operating Income: {financials.operating_income:,}")
+        for year in range(2018, 2026):
+            fs = await dart.fetch_financials("005930", year)   # annual report, consolidated first (separate as fallback)
+            if fs:
+                print(year, f"revenue {fs.revenue:,.0f}", f"operating income {fs.operating_income:,.0f}")
     finally:
-        await scraper.close()
+        await dart.close()
 
 asyncio.run(main())
 ```
 
-### 2. Naver Finance Valuation & Screening (No API Key Required)
+Runnable scripts live in [`examples/`](examples/).
 
-While the KRX scraper is temporarily blocked by upstream login walls, `NaverScraper` fetches PER, PBR, dividend yield, and market cap without requiring any credentials:
+## What it does
+
+| Source | Class | Returns | Unit of collection | Auth |
+|--------|-------|---------|--------------------|------|
+| [DART OpenAPI](https://opendart.fss.or.kr) | `DartScraper` | Company profile, financial statements (annual, half, quarterly), shares outstanding, dividends¹, major shareholders, executives | Per ticker; statements also via `fetch_financials_batch`, up to 100 tickers per call | API key (free) |
+| [Naver Finance](https://m.stock.naver.com) | `NaverScraper` | One `InvestmentRatio`. In the current response only `price` is filled (measured 2026-10); PER, PBR, EPS, BPS, dividend yield and the rest come back `None` | Per ticker; `fetch_batch` for many | None |
+| [KRX Information Data System](http://data.krx.co.kr) | `KrxScraper` | PER, PBR, market cap, sectors | Whole-market bulk CSV | None (⛔ currently blocked) |
+
+¹ `fetch_dividends` currently returns `None`: the DART endpoint answers status 101 (measured 2026-10).
+
+- **Models**: `Company`, `FinancialStatement`, `SharesOutstanding`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview`. All Pydantic, importable from `krx_fundamentals_client`. Fields in [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py).
+- **Screening and ranking**: `screen_stocks` (range filters on PER, PBR, ROE, dividend yield, market cap) and `rank_stocks` (sort by a `RankingMetric`). Pure functions over a `list[InvestmentRatio]`, no state.
+- Numeric fields on every model are optional: when a source does not provide an item, it stays `None` rather than being invented.
+
+## Why it is built this way
+
+- **It is not a server.** FastAPI, cache and scheduler were removed in favor of a library; state and storage belong to the caller. Same shape as [kiwoom-client](https://github.com/younghwan91/kiwoom-client) and [krx-news-client](https://github.com/younghwan91/krx-news-client).
+- **Failures are distinguishable.** Quota exhaustion is an exception, a missing filing is `None`. Pass an `on_status` callback to the statement calls and you receive the raw DART status code (013 no filing, 010/800/900 real failure) without changing the return type.
+- **A blocked path is documented as blocked.** The KRX scraper's silent empty list is not hidden; [docs/krx-blocked.md](docs/krx-blocked.md) traces it through the code.
+
+## More
+
+Statements for many tickers in one call (DART `fnlttMultiAcnt`, up to 100 tickers):
 
 ```python
-import asyncio
-from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
-
-async def main():
-    scraper = NaverScraper()
-    try:
-        # Single-stock valuation ratios
-        ratio = await scraper.fetch_stock_info("005930")
-        print(f"Samsung Elec PER: {ratio.per}, PBR: {ratio.pbr}, Div Yield: {ratio.dividend_yield}%")
-
-        # Batch collection and value screening
-        ratios = await scraper.fetch_batch(["005930", "000660", "035420", "005380"])
-        value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
-        top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
-    finally:
-        await scraper.close()
-
-asyncio.run(main())
-```
-
-Financials for many tickers at once (DART's `fnlttMultiAcnt` batch endpoint, up to 100 tickers per call):
-
-```python
-financials = await scraper.fetch_financials_batch(
-    ["005930", "000660", "035420"], year=2025,
-)
+financials = await dart.fetch_financials_batch(["005930", "000660", "035420"], year=2025)
 for ticker, fs in financials.items():
     if fs is not None:
         print(ticker, fs.revenue, fs.net_income)
 ```
 
-More examples in [`examples/`](examples/).
-
-DART keys carry a daily call quota. Once exhausted, every `DartScraper` method
-raises `DartQuotaExceededError` — a distinct exception so an orchestrator
-rotating multiple keys can tell "no data" apart from "quota exceeded":
+Rotating several DART keys: catch `DartQuotaExceededError` and move on.
 
 ```python
 from krx_fundamentals_client import DartQuotaExceededError, DartScraper
@@ -108,36 +100,37 @@ async def fetch_with_rotation(tickers, keys):
     raise RuntimeError("all keys exhausted their daily quota")
 ```
 
-## Data sources
+Screening and ranking, given a `list[InvestmentRatio]` with PER and PBR filled. Right now `NaverScraper` fills only `price` and KRX is blocked, so this returns empty lists:
 
-| Source | Data | Unit of collection | Auth |
-|--------|------|---------------------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | Company profile, financials, dividends, shareholders, executives | Per ticker (financials also batchable, up to 100 tickers/call) | API key (free) |
-| [KRX Information Data System](http://data.krx.co.kr) | PER, PBR, market cap, sectors | Whole-market bulk CSV | None (⛔ currently blocked by login) |
-| [Naver Finance](https://m.stock.naver.com) | Price, PER, PBR, EPS, BPS, dividend yield | Per ticker | None |
+```python
+from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
 
-## Response models
+naver = NaverScraper()
+try:
+    ratios = await naver.fetch_batch(["005930", "000660", "035420", "005380"])  # only price is filled today
+    value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
+    top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
+finally:
+    await naver.close()
+```
 
-`Company`, `FinancialStatement`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview` — all Pydantic models, importable directly from `krx_fundamentals_client`. See [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py) for fields.
+## Structure
 
-## Screening / ranking
-
-`screen_stocks` and `rank_stocks` are pure functions with no cache or state — pass them the `list[InvestmentRatio]` you got from `KrxScraper.fetch_investment_ratios()` and they filter/sort it on the spot. See [docs/architecture.md](docs/architecture.md) (Korean) for details.
+Caller → scraper class → source, nothing in between. Every DART detail call needs a `corp_code`; the first call downloads the full mapping once and caches it on the instance for 24 hours, so reuse one scraper across tickers. Diagram and DART call order: [docs/architecture.md](docs/architecture.md) (Korean).
 
 ## Development
 
 ```bash
 uv sync --extra dev
-uv run pytest                        # tests
+uv run pytest                        # tests (HTTP mocked with pytest-httpx)
 uv run ruff check src/ tests/        # lint
-uv run ruff format src/ tests/       # format
 ```
 
 ## Docs
 
 - [docs/architecture.md](docs/architecture.md) — scraper structure, ranking/screening, DART call order
 - [docs/krx-blocked.md](docs/krx-blocked.md) — code walkthrough of the KRX block
-- [`examples/`](examples/) — runnable usage examples
+- [`examples/`](examples/) — basic usage, screening, portfolio examples
 
 (The docs under `docs/` are written in Korean.)
 

@@ -1,5 +1,7 @@
 # krx-fundamentals-client
 
+**국내 기업 펀더멘탈을 DART·KRX·네이버에서 모아 Pydantic 모델로 돌려주는 Python 라이브러리 — 서버 없이 pip 한 줄.**
+
 [![CI](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml/badge.svg)](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
@@ -12,100 +14,76 @@
 
 [English](README.en.md)
 
-**DART·KRX·네이버 금융에서 국내 기업 펀더멘탈을 모아 하나의 스키마로 내주는 Python 클라이언트 라이브러리** — 재무제표, 투자지표, 배당, 대주주, 임원, 종목 스크리닝.
+- 위 그림의 숫자는 전부 라이브러리 호출값과 그 비율(영업이익률)이다 — 삼성전자 연결 재무제표 FY2018~FY2025 8개년을 `fetch_financials` 로 받은 그대로([hero-data.json](docs/images/hero-data.json)).
+- 상시 서버·캐시·스케줄러가 없다. 의존성은 httpx·beautifulsoup4·lxml·pydantic 넷뿐이고, 호출할 때마다 소스에 직접 요청한다.
+- DART 일한도 소진은 `DartQuotaExceededError` 로 던진다 — "데이터 없음"과 섞이지 않는다.
 
-[kiwoom-client](https://github.com/younghwan91/kiwoom-client), [krx-news-client](https://github.com/younghwan91/krx-news-client)와 같은 성격의 라이브러리다 — 서버 없이, 호출할 때마다 소스에 직접 요청해 결과를 돌려준다.
-
-> ⛔ **KRX 수집 경로는 현재 막혀 있다 (2026-08 실측).** KRX 로그인 문제로 투자지표·시가총액·섹터가
-> 조용히 빈 채로 온다 (상위 100종목은 `NaverScraper`로 대체 가능, DART 경로는 영향 없음).
-> 원인 코드 추적은 [docs/krx-blocked.md](docs/krx-blocked.md).
-
-## 설치
-
-```bash
-pip install krx-fundamentals-client
-```
+> ⛔ **KRX 경로는 막혀 있다 (2026-08 실측).** KRX 가 로그인을 걸어 `KrxScraper` 가 예외 없이 빈 리스트를 돌려준다.
+> DART 경로는 영향 없고, 시세(현재가)는 `NaverScraper` 로 받는다. 추적: [docs/krx-blocked.md](docs/krx-blocked.md).
 
 ## 빠른 시작
 
-### 1. DART 기업 정보 및 재무제표 (API 키 무료 발급)
+PyPI 에는 아직 없다. git 에서 바로 설치한다:
+
+```bash
+pip install git+https://github.com/younghwan91/krx-fundamentals-client
+```
+
+DART API 키는 [opendart.fss.or.kr](https://opendart.fss.or.kr) 에서 무료로 발급한다. 한 종목의 재무제표 8개년(히어로 그림 그대로):
 
 ```python
 import asyncio
 from krx_fundamentals_client import DartScraper
 
 async def main():
-    scraper = DartScraper(api_key="...")  # https://opendart.fss.or.kr 무료 발급
+    dart = DartScraper(api_key="...")
     try:
-        company = await scraper.fetch_company("005930")
+        company = await dart.fetch_company("005930")
         print(company.name, company.ceo)
-
-        financials = await scraper.fetch_financials("005930", year=2025)
-        print(f"매출액: {financials.revenue:,} / 영업이익: {financials.operating_income:,}")
+        for year in range(2018, 2026):
+            fs = await dart.fetch_financials("005930", year)   # 사업보고서, 연결 우선(없으면 개별)
+            if fs:
+                print(year, f"매출 {fs.revenue:,.0f}", f"영업이익 {fs.operating_income:,.0f}")
     finally:
-        await scraper.close()
+        await dart.close()
 
 asyncio.run(main())
 ```
 
-### 2. 네이버 금융 투자지표 및 스크리닝 (API 키 불필요)
+바로 돌려볼 수 있는 전체 스크립트는 [`examples/`](examples/) 에 있다.
 
-KRX 공식 수집 경로가 로그인 차단 중인 동안, `NaverScraper`로 PER·PBR·배당수익률·시가총액을 키 없이 즉시 수집하고 스크리닝할 수 있습니다:
+## 무엇을 하나
 
-```python
-import asyncio
-from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
+| 소스 | 클래스 | 돌려주는 것 | 수집 단위 | 인증 |
+|-----|-------|-----------|----------|------|
+| [DART OpenAPI](https://opendart.fss.or.kr) | `DartScraper` | 기업개황, 재무제표(연간·반기·분기), 발행주식수, 배당¹, 대주주, 임원 | 종목 단위. 재무제표는 `fetch_financials_batch` 로 최대 100종목/호출 | API 키 (무료) |
+| [네이버 금융](https://m.stock.naver.com) | `NaverScraper` | `InvestmentRatio` 한 건. 현재 응답에서는 현재가만 채워진다(2026-10 실측); PER·PBR·EPS·BPS·배당수익률 등 나머지 필드는 `None` | 종목 단위, `fetch_batch` 로 여러 종목 | 불필요 |
+| [KRX 정보데이터시스템](http://data.krx.co.kr) | `KrxScraper` | PER·PBR·시가총액·섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 차단) |
 
-async def main():
-    scraper = NaverScraper()
-    try:
-        # 단일 종목 투자지표
-        ratio = await scraper.fetch_stock_info("005930")
-        print(f"삼성전자 PER: {ratio.per}, PBR: {ratio.pbr}, 배당수익률: {ratio.dividend_yield}%")
+¹ `fetch_dividends` 는 현재 DART 엔드포인트가 status 101 을 돌려줘 `None` 을 반환한다(2026-10 실측).
 
-        # 종목군 배치 수집 후 스크리닝 & 랭킹
-        ratios = await scraper.fetch_batch(["005930", "000660", "035420", "005380"])
-        value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
-        top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
-    finally:
-        await scraper.close()
+- **응답 모델**: `Company`, `FinancialStatement`, `SharesOutstanding`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview`. 전부 Pydantic 이고 `krx_fundamentals_client` 에서 바로 import 한다. 필드 정의는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py).
+- **스크리닝·랭킹**: `screen_stocks`(PER·PBR·ROE·배당수익률·시가총액 범위 필터), `rank_stocks`(`RankingMetric` 기준 정렬). `list[InvestmentRatio]` 를 넘기면 그 자리에서 계산하는 순수 함수다.
+- 각 모델의 수치 필드는 `None` 일 수 있다 — 소스가 그 항목을 주지 않으면 값을 지어내지 않고 비워 둔다.
 
-asyncio.run(main())
-```
+## 왜 이렇게 만들었나
 
-배치 조회·키 순환 같은 실전 패턴은 아래 [고급 사용법](#고급-사용법)에, 바로 돌려볼 수 있는
-전체 스크립트는 [`examples/`](examples/)에 있다.
+- **서버가 아니다.** FastAPI·캐시·스케줄러를 걷어내고 라이브러리로 바꿨다. 상태와 저장은 호출자 몫이다. [kiwoom-client](https://github.com/younghwan91/kiwoom-client)·[krx-news-client](https://github.com/younghwan91/krx-news-client) 와 같은 모양이다.
+- **실패를 구분한다.** 한도 소진은 예외, 공시 없음은 `None`. 재무제표 호출에 `on_status` 콜백을 넘기면 DART status 코드(013 공시 없음 / 010·800·900 실패)를 반환 타입을 바꾸지 않고 받아볼 수 있다.
+- **막힌 것은 막혔다고 적는다.** KRX 경로가 조용히 빈 리스트를 내는 문제는 숨기지 않고 [docs/krx-blocked.md](docs/krx-blocked.md) 에 코드 추적까지 남겼다.
 
-## 데이터 소스
+## 더 쓰기
 
-| 소스 | 데이터 | 수집 단위 | 인증 |
-|-----|-------|----------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | 기업개황, 재무제표, 배당, 대주주, 임원, 발행주식수 | 종목 단위 (재무제표는 최대 100종목/호출 배치도 가능) | API 키 (무료) |
-| [KRX 정보데이터시스템](http://data.krx.co.kr) | PER, PBR, 시가총액, 섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 로그인 차단) |
-| [네이버 금융](https://m.stock.naver.com) | 시세·PER·PBR·EPS·BPS·배당수익률 | 종목 단위 | 불필요 |
-
-## 응답 모델
-
-`Company`, `FinancialStatement`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SharesOutstanding`, `SectorOverview` — 전부 Pydantic 모델이며 `krx_fundamentals_client`에서 바로 import 할 수 있다. 필드는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py) 참고.
-
-## 스크리닝 / 랭킹
-
-`screen_stocks`, `rank_stocks`는 캐시나 상태를 갖지 않는 순수 함수다 — `KrxScraper.fetch_investment_ratios()`로 받은 `list[InvestmentRatio]`를 넘기면 그 자리에서 필터링/정렬해 반환한다.
-
-## 고급 사용법
-
-여러 종목의 재무제표를 한 번에 (DART `fnlttMultiAcnt` 배치, 최대 100종목/호출):
+여러 종목의 재무제표를 한 번에 (DART `fnlttMultiAcnt`, 최대 100종목/호출):
 
 ```python
-financials = await scraper.fetch_financials_batch(
-    ["005930", "000660", "035420"], year=2025,
-)
+financials = await dart.fetch_financials_batch(["005930", "000660", "035420"], year=2025)
 for ticker, fs in financials.items():
     if fs is not None:
         print(ticker, fs.revenue, fs.net_income)
 ```
 
-DART 키의 일일 한도를 소진하면 `DartScraper`가 `DartQuotaExceededError`를 던진다 — 여러 키를 순환할 때 잡아서 다음 키로 넘어가면 된다:
+키 여러 개를 순환할 때는 `DartQuotaExceededError` 를 잡아 다음 키로 넘어간다:
 
 ```python
 from krx_fundamentals_client import DartQuotaExceededError, DartScraper
@@ -122,7 +100,21 @@ async def fetch_with_rotation(tickers, keys):
     raise RuntimeError("모든 키가 일한도를 소진했다")
 ```
 
-## 아키텍처
+스크리닝·랭킹 — PER·PBR 이 채워진 `list[InvestmentRatio]` 가 있을 때. 지금은 `NaverScraper` 가 현재가만 채우고 KRX 는 막혀 있어, 아래 결과는 빈 리스트다:
+
+```python
+from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
+
+naver = NaverScraper()
+try:
+    ratios = await naver.fetch_batch(["005930", "000660", "035420", "005380"])  # 현재는 price 만 채워진다
+    value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
+    top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
+finally:
+    await naver.close()
+```
+
+## 구조
 
 ```mermaid
 flowchart LR
@@ -136,9 +128,9 @@ flowchart LR
         Models["Pydantic 모델\n(models/schemas.py)"]
     end
 
-    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당·대주주·임원·발행주식수"]
+    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당(¹)·대주주·임원·발행주식수"]
     Krx -->|"OTP 2단계 다운로드"| KrxSite["KRX 정보데이터시스템\nPER·PBR·시가총액·섹터\n(⛔ 현재 로그인 차단)"]
-    Naver --> NaverSite["네이버 금융 모바일 API\n시세·PER·PBR·EPS·BPS·배당수익률"]
+    Naver --> NaverSite["네이버 금융 모바일 API\n시세"]
 
     Caller --> Dart
     Caller --> Krx
@@ -154,20 +146,21 @@ flowchart LR
     Models --> Caller
 ```
 
+DART 상세 조회는 모두 `corp_code` 가 필요하다. 첫 호출에서 전체 매핑을 한 번 내려받아 인스턴스에 24시간 캐시하므로, 여러 종목을 볼 때는 스크레이퍼 인스턴스를 재사용한다.
+
 ## 개발
 
 ```bash
 uv sync --extra dev
-uv run pytest                        # 테스트
+uv run pytest                        # 테스트 (HTTP 는 pytest-httpx 목)
 uv run ruff check src/ tests/        # 린트
-uv run ruff format src/ tests/       # 포맷
 ```
 
 ## 문서
 
 - [docs/architecture.md](docs/architecture.md) — 스크레이퍼 구조, 랭킹/스크리닝, DART 호출 순서
 - [docs/krx-blocked.md](docs/krx-blocked.md) — KRX 차단 코드 추적
-- [`examples/`](examples/) — 바로 돌려볼 수 있는 사용 예제
+- [`examples/`](examples/) — 기본 사용·스크리닝·포트폴리오 예제
 
 ## 라이선스
 
