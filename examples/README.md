@@ -6,7 +6,7 @@
 ## 사전 준비
 
 ```bash
-pip install krx-fundamentals-client
+pip install git+https://github.com/younghwan91/krx-fundamentals-client
 export DART_API_KEY=...   # https://opendart.fss.or.kr 에서 무료 발급
 ```
 

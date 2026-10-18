@@ -4,7 +4,7 @@ DART/네이버 스크레이퍼를 직접 호출해 한 종목의 기업 개황, 
 투자지표, 배당, 대주주, 임원 정보를 순서대로 조회합니다.
 
 사용법:
-    pip install krx-fundamentals-client
+    pip install git+https://github.com/younghwan91/krx-fundamentals-client
     export DART_API_KEY=...   # https://opendart.fss.or.kr 에서 무료 발급
     python examples/basic_usage.py
 """

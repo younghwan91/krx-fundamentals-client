@@ -4,7 +4,7 @@
 요약 테이블과 포트폴리오 평균을 출력합니다.
 
 사용법:
-    pip install krx-fundamentals-client
+    pip install git+https://github.com/younghwan91/krx-fundamentals-client
     export DART_API_KEY=...   # https://opendart.fss.or.kr 에서 무료 발급
     python examples/portfolio_analysis.py
 """

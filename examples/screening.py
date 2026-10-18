@@ -5,7 +5,7 @@ KRX에서 전 종목 투자지표를 한 번에 받아와 가치주/배당주 �
 반환됩니다 — docs/krx-blocked.md 참고)
 
 사용법:
-    pip install krx-fundamentals-client
+    pip install git+https://github.com/younghwan91/krx-fundamentals-client
     python examples/screening.py
 """
 
