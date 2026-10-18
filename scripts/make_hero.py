@@ -102,7 +102,7 @@ def draw_factory(d: dict):
         )
         fig.text(
             0.0, 0.91,
-            f"{d['name_en']} ({d['ticker']})  ·  DartScraper.fetch_financials / fetch_shares_outstanding  +  NaverScraper.fetch_stock_info  →  Pydantic models",
+            f"{d['name_en']} ({d['ticker']})  ·  DartScraper.fetch_financials / fetch_dividends  +  NaverScraper.fetch_stock_info  →  Pydantic models",
             color=p["ink2"], fontsize=11, ha="left", va="top",
         )
 
@@ -168,7 +168,7 @@ def draw_factory(d: dict):
 
         caption(
             fig,
-            f"Source: DART Open API (fnlttSinglAcnt consolidated annual, stockTotqySttus) and Naver Finance mobile API, "
+            f"Source: DART Open API (fnlttSinglAcnt consolidated annual, alotMatter) and Naver Finance mobile API, "
             f"fetched {d['fetched']}. Public filings; figures as reported.",
             p,
         )

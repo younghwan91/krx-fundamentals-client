@@ -106,15 +106,20 @@
     "shares_outstanding": 5919637922,
     "stlm_dt": "2025-12-31"
   },
-  "dividend": null,
+  "dividend": {
+    "year": 2025,
+    "dividend_per_share": 1668.0,
+    "payout_ratio": 25.1,
+    "dividend_yield": 1.5
+  },
   "ratio": {
-    "market_cap": null,
-    "per": null,
-    "pbr": null,
-    "eps": null,
-    "bps": null,
-    "dividend_yield": null,
+    "market_cap": 12686425.0,
+    "per": 9.73,
+    "pbr": 2.52,
+    "eps": 22292.0,
+    "bps": 86052.0,
+    "dividend_yield": 0.77,
     "price": 217000.0,
-    "foreign_ratio": null
+    "foreign_ratio": 45.98
   }
 }

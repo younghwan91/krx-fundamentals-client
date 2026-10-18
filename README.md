@@ -9,17 +9,17 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
-  <img alt="삼성전자 한 종목의 DART 연결 재무제표 8개년(매출·영업이익)과 발행주식수·현재가를 라이브러리로 받아 한 스키마로 그린 그림" src="docs/images/hero-light.png" width="100%">
+  <img alt="삼성전자 한 종목의 DART 연결 재무제표 8개년(매출·영업이익)·배당과 네이버 PER·PBR·배당수익률을 라이브러리로 받아 한 스키마로 그린 그림" src="docs/images/hero-light.png" width="100%">
 </picture>
 
 [English](README.en.md)
 
-- 위 그림의 숫자는 전부 라이브러리 호출값과 그 비율(영업이익률)이다 — 삼성전자 연결 재무제표 FY2018~FY2025 8개년을 `fetch_financials` 로 받은 그대로([hero-data.json](docs/images/hero-data.json)).
+- 위 그림의 숫자는 전부 라이브러리 호출값과 그 비율(영업이익률)이다 — 삼성전자 연결 재무제표 FY2018~FY2025 8개년은 `fetch_financials`, 주당배당금은 `fetch_dividends`, PER·PBR·배당수익률은 `NaverScraper.fetch_stock_info` 로 받은 그대로([hero-data.json](docs/images/hero-data.json)).
 - 상시 서버·캐시·스케줄러가 없다. 의존성은 httpx·beautifulsoup4·lxml·pydantic 넷뿐이고, 호출할 때마다 소스에 직접 요청한다.
 - DART 일한도 소진은 `DartQuotaExceededError` 로 던진다 — "데이터 없음"과 섞이지 않는다.
 
 > ⛔ **KRX 경로는 막혀 있다 (2026-08 실측).** KRX 가 로그인을 걸어 `KrxScraper` 가 예외 없이 빈 리스트를 돌려준다.
-> DART 경로는 영향 없고, 시세(현재가)는 `NaverScraper` 로 받는다. 추적: [docs/krx-blocked.md](docs/krx-blocked.md).
+> DART 경로는 영향 없고, 시세·PER·PBR 같은 종목별 투자지표는 `NaverScraper` 로 받는다. 추적: [docs/krx-blocked.md](docs/krx-blocked.md).
 
 ## 빠른 시작
 
@@ -56,11 +56,9 @@ asyncio.run(main())
 
 | 소스 | 클래스 | 돌려주는 것 | 수집 단위 | 인증 |
 |-----|-------|-----------|----------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | `DartScraper` | 기업개황, 재무제표(연간·반기·분기), 발행주식수, 배당¹, 대주주, 임원 | 종목 단위. 재무제표는 `fetch_financials_batch` 로 최대 100종목/호출 | API 키 (무료) |
-| [네이버 금융](https://m.stock.naver.com) | `NaverScraper` | `InvestmentRatio` 한 건. 현재 응답에서는 현재가만 채워진다(2026-10 실측); PER·PBR·EPS·BPS·배당수익률 등 나머지 필드는 `None` | 종목 단위, `fetch_batch` 로 여러 종목 | 불필요 |
+| [DART OpenAPI](https://opendart.fss.or.kr) | `DartScraper` | 기업개황, 재무제표(연간·반기·분기), 발행주식수, 배당, 대주주, 임원 | 종목 단위. 재무제표는 `fetch_financials_batch` 로 최대 100종목/호출 | API 키 (무료) |
+| [네이버 금융](https://m.stock.naver.com) | `NaverScraper` | `InvestmentRatio` 한 건: 현재가·시가총액·PER·PBR·EPS·BPS·배당수익률·거래량·52주 고저·외국인소진율 (2026-10 실측). ROE·부채비율 같은 재무비율은 주지 않아 `None` | 종목 단위, `fetch_batch` 로 여러 종목 | 불필요 |
 | [KRX 정보데이터시스템](http://data.krx.co.kr) | `KrxScraper` | PER·PBR·시가총액·섹터 | 시장 전체 벌크 CSV | 불필요 (⛔ 현재 차단) |
-
-¹ `fetch_dividends` 는 현재 DART 엔드포인트가 status 101 을 돌려줘 `None` 을 반환한다(2026-10 실측).
 
 - **응답 모델**: `Company`, `FinancialStatement`, `SharesOutstanding`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview`. 전부 Pydantic 이고 `krx_fundamentals_client` 에서 바로 import 한다. 필드 정의는 [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py).
 - **스크리닝·랭킹**: `screen_stocks`(PER·PBR·ROE·배당수익률·시가총액 범위 필터), `rank_stocks`(`RankingMetric` 기준 정렬). `list[InvestmentRatio]` 를 넘기면 그 자리에서 계산하는 순수 함수다.
@@ -100,14 +98,14 @@ async def fetch_with_rotation(tickers, keys):
     raise RuntimeError("모든 키가 일한도를 소진했다")
 ```
 
-스크리닝·랭킹 — PER·PBR 이 채워진 `list[InvestmentRatio]` 가 있을 때. 지금은 `NaverScraper` 가 현재가만 채우고 KRX 는 막혀 있어, 아래 결과는 빈 리스트다:
+스크리닝·랭킹 — `NaverScraper` 가 채운 PER·PBR 로 그 자리에서 거르고 정렬한다(KRX 벌크 경로는 막혀 있으니 종목을 넘겨 모은다):
 
 ```python
 from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
 
 naver = NaverScraper()
 try:
-    ratios = await naver.fetch_batch(["005930", "000660", "035420", "005380"])  # 현재는 price 만 채워진다
+    ratios = await naver.fetch_batch(["005930", "000660", "035420", "005380"])
     value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
     top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
 finally:
@@ -128,9 +126,9 @@ flowchart LR
         Models["Pydantic 모델\n(models/schemas.py)"]
     end
 
-    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당(¹)·대주주·임원·발행주식수"]
+    Dart -->|"corp_code 캐시(24h)"| DartAPI["DART OpenAPI\n기업개황·재무제표·배당·대주주·임원·발행주식수"]
     Krx -->|"OTP 2단계 다운로드"| KrxSite["KRX 정보데이터시스템\nPER·PBR·시가총액·섹터\n(⛔ 현재 로그인 차단)"]
-    Naver --> NaverSite["네이버 금융 모바일 API\n시세"]
+    Naver --> NaverSite["네이버 금융 모바일 API\n시세·PER·PBR·EPS·BPS·배당수익률·시가총액"]
 
     Caller --> Dart
     Caller --> Krx
@@ -138,6 +136,7 @@ flowchart LR
     Caller --> Screen
 
     Krx -->|"list[InvestmentRatio]"| Screen
+    Naver -->|"list[InvestmentRatio]"| Screen
     Screen -->|"필터링/정렬 결과"| Caller
 
     Dart --> Models

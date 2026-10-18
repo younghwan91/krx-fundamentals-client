@@ -9,17 +9,17 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
-  <img alt="Eight years of Samsung Electronics consolidated revenue and operating income from DART, plus shares outstanding and last price, fetched through the library into one schema" src="docs/images/hero-light.png" width="100%">
+  <img alt="Eight years of Samsung Electronics consolidated revenue and operating income and the dividend from DART, plus PER, PBR and dividend yield from Naver, fetched through the library into one schema" src="docs/images/hero-light.png" width="100%">
 </picture>
 
 [한국어](README.md)
 
-- Every number above is a library return value or a ratio of two (operating margin): Samsung Electronics consolidated statements FY2018 to FY2025, straight from `fetch_financials` ([hero-data.json](docs/images/hero-data.json)).
+- Every number above is a library return value or a ratio of two (operating margin): Samsung Electronics consolidated statements FY2018 to FY2025 from `fetch_financials`, the dividend per share from `fetch_dividends`, PER, PBR and dividend yield from `NaverScraper.fetch_stock_info` ([hero-data.json](docs/images/hero-data.json)).
 - No standing server, cache or scheduler. Four dependencies (httpx, beautifulsoup4, lxml, pydantic); each call hits the source directly.
 - A spent DART daily quota raises `DartQuotaExceededError`, so it never masquerades as "no data".
 
 > ⛔ **The KRX path is blocked (measured 2026-08).** KRX put a login in front of its endpoints and `KrxScraper` now returns an empty list without raising.
-> The DART path is unaffected; the last price comes from `NaverScraper`. Walkthrough: [docs/krx-blocked.md](docs/krx-blocked.md) (Korean).
+> The DART path is unaffected; per-ticker price and valuation ratios (PER, PBR, ...) come from `NaverScraper`. Walkthrough: [docs/krx-blocked.md](docs/krx-blocked.md) (Korean).
 
 ## Quick start
 
@@ -56,11 +56,9 @@ Runnable scripts live in [`examples/`](examples/).
 
 | Source | Class | Returns | Unit of collection | Auth |
 |--------|-------|---------|--------------------|------|
-| [DART OpenAPI](https://opendart.fss.or.kr) | `DartScraper` | Company profile, financial statements (annual, half, quarterly), shares outstanding, dividends¹, major shareholders, executives | Per ticker; statements also via `fetch_financials_batch`, up to 100 tickers per call | API key (free) |
-| [Naver Finance](https://m.stock.naver.com) | `NaverScraper` | One `InvestmentRatio`. In the current response only `price` is filled (measured 2026-10); PER, PBR, EPS, BPS, dividend yield and the rest come back `None` | Per ticker; `fetch_batch` for many | None |
+| [DART OpenAPI](https://opendart.fss.or.kr) | `DartScraper` | Company profile, financial statements (annual, half, quarterly), shares outstanding, dividends, major shareholders, executives | Per ticker; statements also via `fetch_financials_batch`, up to 100 tickers per call | API key (free) |
+| [Naver Finance](https://m.stock.naver.com) | `NaverScraper` | One `InvestmentRatio`: price, market cap, PER, PBR, EPS, BPS, dividend yield, volume, 52-week high/low, foreign ownership (measured 2026-10). Accounting ratios such as ROE and debt ratio are not provided and stay `None` | Per ticker; `fetch_batch` for many | None |
 | [KRX Information Data System](http://data.krx.co.kr) | `KrxScraper` | PER, PBR, market cap, sectors | Whole-market bulk CSV | None (⛔ currently blocked) |
-
-¹ `fetch_dividends` currently returns `None`: the DART endpoint answers status 101 (measured 2026-10).
 
 - **Models**: `Company`, `FinancialStatement`, `SharesOutstanding`, `InvestmentRatio`, `Dividend`, `Shareholder`, `Executive`, `SectorOverview`. All Pydantic, importable from `krx_fundamentals_client`. Fields in [`models/schemas.py`](src/krx_fundamentals_client/models/schemas.py).
 - **Screening and ranking**: `screen_stocks` (range filters on PER, PBR, ROE, dividend yield, market cap) and `rank_stocks` (sort by a `RankingMetric`). Pure functions over a `list[InvestmentRatio]`, no state.
@@ -100,14 +98,14 @@ async def fetch_with_rotation(tickers, keys):
     raise RuntimeError("all keys exhausted their daily quota")
 ```
 
-Screening and ranking, given a `list[InvestmentRatio]` with PER and PBR filled. Right now `NaverScraper` fills only `price` and KRX is blocked, so this returns empty lists:
+Screening and ranking: filter and sort in place on the PER and PBR that `NaverScraper` fills (the KRX bulk path is blocked, so pass the tickers you want):
 
 ```python
 from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks
 
 naver = NaverScraper()
 try:
-    ratios = await naver.fetch_batch(["005930", "000660", "035420", "005380"])  # only price is filled today
+    ratios = await naver.fetch_batch(["005930", "000660", "035420", "005380"])
     value_stocks = screen_stocks(ratios, per_max=15.0, pbr_max=1.2)
     top_by_pbr = rank_stocks(ratios, RankingMetric.PBR)
 finally:

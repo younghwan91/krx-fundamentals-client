@@ -134,6 +134,43 @@ def _build_financial_statement(
     )
 
 
+def _dividend_row_value(items: list[dict], se_contains: str) -> float | None:
+    """alotMatter 행 중 ``se`` 가 ``se_contains`` 를 품은 행의 당기(``thstrm``) 값.
+
+    주식종류(``stock_knd``)가 갈리는 항목(주당 현금배당금·현금배당수익률)은
+    보통주 행을 우선하고, 없으면 값이 있는 첫 행을 쓴다.
+    """
+    matched = [it for it in items if se_contains in (it.get("se") or "").replace(" ", "")]
+    for it in matched:
+        if "보통주" in (it.get("stock_knd") or ""):
+            return parse_float(it.get("thstrm"))
+    for it in matched:
+        v = parse_float(it.get("thstrm"))
+        if v is not None:
+            return v
+    return None
+
+
+def _parse_dividend_rows(items: list[dict]) -> dict:
+    """DART ``alotMatter.json`` 행 목록을 ``Dividend`` 필드로 바꾼다.
+
+    ``se`` 는 '주당 현금배당금(원)'·'현금배당수익률(%)'·'(연결)현금배당성향(%)'·
+    '현금배당금총액(백만원)' 처럼 온다. '주당액면가액(원)'·'주당 주식배당(주)' 와
+    섞이지 않도록 항목명을 정확히 고른다. 배당성향은 연결을 우선, 없으면 별도.
+    """
+    payout = _dividend_row_value(items, "(연결)현금배당성향")
+    if payout is None:
+        payout = _dividend_row_value(items, "현금배당성향")
+    stlm_dt = next((it.get("stlm_dt") or "" for it in items if it.get("stlm_dt")), "")
+    return {
+        "dividend_per_share": _dividend_row_value(items, "주당현금배당금"),
+        "dividend_yield": _dividend_row_value(items, "현금배당수익률"),
+        "payout_ratio": payout,
+        "total_dividends": _dividend_row_value(items, "현금배당금총액"),
+        "stlm_dt": stlm_dt,
+    }
+
+
 def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
     """stockTotqySttus 응답의 ``list``에서 보통주 발행주식총수 행을 찾는다.
 
@@ -514,7 +551,8 @@ class DartScraper(BaseScraper):
         if not corp_code:
             return None
 
-        url = f"{self.base_url}/alotDvdnd.json"
+        # 배당에 관한 사항: alotMatter.json (alotDvdnd.json 은 존재하지 않는 URL — status 101)
+        url = f"{self.base_url}/alotMatter.json"
         try:
             resp = await self.fetch(
                 url,
@@ -536,29 +574,8 @@ class DartScraper(BaseScraper):
             return None
 
         items: list[dict] = data.get("list", [])
-
-        dividend_per_share: float | None = None
-        dividend_yield: float | None = None
-        payout_ratio: float | None = None
-
-        for item in items:
-            se = item.get("se", "")
-            thstrm = item.get("thstrm", "")
-
-            if "주당" in se and dividend_per_share is None:
-                dividend_per_share = parse_float(thstrm)
-            elif "배당수익률" in se and dividend_yield is None:
-                dividend_yield = parse_float(thstrm)
-            elif "배당성향" in se and payout_ratio is None:
-                payout_ratio = parse_float(thstrm)
-
-        return Dividend(
-            ticker=ticker,
-            year=year,
-            dividend_per_share=dividend_per_share,
-            dividend_yield=dividend_yield,
-            payout_ratio=payout_ratio,
-        )
+        parsed = _parse_dividend_rows(items)
+        return Dividend(ticker=ticker, year=year, **parsed)
 
     # ------------------------------------------------------------------
     # 5. Major Shareholders (최대주주)

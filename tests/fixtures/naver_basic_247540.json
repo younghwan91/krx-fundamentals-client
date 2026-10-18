@@ -1,0 +1,12 @@
+{
+ "stockEndType": "stock",
+ "itemCode": "247540",
+ "stockName": "에코프로비엠",
+ "sosok": "1",
+ "closePrice": "106,500",
+ "compareToPreviousClosePrice": "600",
+ "fluctuationsRatio": "0.57",
+ "marketStatus": "CLOSE",
+ "localTradedAt": "2026-10-16T20:20:20+09:00",
+ "stockExchangeName": "KOSDAQ"
+}

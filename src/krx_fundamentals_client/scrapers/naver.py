@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from krx_fundamentals_client.models.schemas import InvestmentRatio, Market
 from krx_fundamentals_client.scrapers.base import BaseScraper
@@ -79,6 +80,62 @@ def parse_estimate(
     return None, None, est_year
 
 
+_LEADING_NUMBER = re.compile(r"^[-+]?\d[\d,]*(?:\.\d+)?|^[-+]?\.\d+")
+_KRW_EOK = re.compile(r"(?:([\d,]+)\s*조)?\s*(?:([\d,]+)\s*억)?")
+
+
+def parse_unit_number(value: object) -> float | None:
+    """"9.73배"·"22,292원"·"0.77%" 처럼 단위가 붙은 표시 문자열에서 앞의 숫자만 뽑는다.
+
+    숫자로 시작하지 않으면(``-``·빈 값) ``None``. 쉼표 처리는 ``parse_float`` 에 맡긴다.
+    """
+    if value is None:
+        return None
+    m = _LEADING_NUMBER.match(str(value).strip())
+    return _parse_float(m.group(0)) if m else None
+
+
+def parse_krw_eok(value: object) -> float | None:
+    """"1,268조 6,425억"·"651억" 같은 금액 표시를 억원 float 으로. 조·억이 없으면 ``None``."""
+    if value is None:
+        return None
+    m = _KRW_EOK.fullmatch(str(value).strip())
+    if not m or not (m.group(1) or m.group(2)):
+        return None
+    jo = _parse_float(m.group(1)) or 0.0
+    eok = _parse_float(m.group(2)) or 0.0
+    return jo * 10_000 + eok
+
+
+def parse_total_infos(payload: dict) -> dict:
+    """``.../integration`` 의 ``totalInfos`` 를 ``InvestmentRatio`` 필드 dict 로.
+
+    항목은 ``{"code": "per", "key": "PER", "value": "9.73배"}`` 꼴. 52주 고저는
+    수정주가 기준(``...Adjusted``)이 있으면 그것을 쓴다.
+    """
+    info: dict[str, object] = {}
+    for item in payload.get("totalInfos") or []:
+        code = item.get("code")
+        if code and code not in info:
+            info[code] = item.get("value")
+
+    def _first(*codes: str) -> object:
+        return next((info[c] for c in codes if info.get(c) is not None), None)
+
+    return {
+        "market_cap": parse_krw_eok(info.get("marketValue")),
+        "per": parse_unit_number(info.get("per")),
+        "pbr": parse_unit_number(info.get("pbr")),
+        "eps": parse_unit_number(info.get("eps")),
+        "bps": parse_unit_number(info.get("bps")),
+        "dividend_yield": parse_unit_number(info.get("dividendYieldRatio")),
+        "volume": _parse_int(info.get("accumulatedTradingVolume")),
+        "high_52w": parse_unit_number(_first("highPriceOf52WeeksAdjusted", "highPriceOf52Weeks")),
+        "low_52w": parse_unit_number(_first("lowPriceOf52WeeksAdjusted", "lowPriceOf52Weeks")),
+        "foreign_ratio": parse_unit_number(info.get("foreignRate")),
+    }
+
+
 class NaverScraper(BaseScraper):
     """네이버 금융 모바일 JSON API 기반 투자지표 수집 스크래퍼."""
 
@@ -88,11 +145,18 @@ class NaverScraper(BaseScraper):
     max_delay = 1.0
 
     async def fetch_stock_info(self, ticker: str) -> InvestmentRatio | None:
-        """단일 종목의 기본 투자지표를 모바일 JSON API에서 수집한다."""
-        url = f"{self.base_url}/stock/{ticker}/basic"
+        """단일 종목의 투자지표를 모바일 JSON API 두 번으로 모은다.
+
+        ``/basic`` 은 종목명·시장·현재가만 준다(2026-10 실측). PER·PBR·EPS·BPS·
+        배당수익률·시총·거래량·52주 고저·외인소진율은 ``/integration`` 의
+        ``totalInfos`` (``code``/``value`` 항목, 값은 "9.73배"·"1,268조 6,425억" 같은
+        표시 문자열)에서 읽는다. 둘 중 하나라도 실패하면 ``None``.
+        """
         try:
-            resp = await self.fetch(url)
-            data = resp.json()
+            basic = (await self.fetch(f"{self.base_url}/stock/{ticker}/basic")).json()
+            integration = (
+                await self.fetch(f"{self.base_url}/stock/{ticker}/integration")
+            ).json()
         except Exception:
             logger.warning("[%s] Failed to fetch ticker %s", self.source, ticker)
             return None
@@ -100,19 +164,10 @@ class NaverScraper(BaseScraper):
         try:
             return InvestmentRatio(
                 ticker=ticker,
-                name=data.get("stockName", ""),
-                market=_detect_market(data.get("marketName")),
-                market_cap=_parse_float(data.get("marketCap")),
-                per=_parse_float(data.get("per")),
-                pbr=_parse_float(data.get("pbr")),
-                eps=_parse_float(data.get("eps")),
-                bps=_parse_float(data.get("bps")),
-                dividend_yield=_parse_float(data.get("dividendYield")),
-                price=_parse_float(data.get("closePrice")),
-                volume=_parse_int(data.get("accumulatedTradingVolume")),
-                high_52w=_parse_float(data.get("high52wPrice")),
-                low_52w=_parse_float(data.get("low52wPrice")),
-                foreign_ratio=_parse_float(data.get("foreignRatio")),
+                name=basic.get("stockName") or integration.get("stockName") or "",
+                market=_detect_market(basic.get("stockExchangeName")),
+                price=_parse_float(basic.get("closePrice")),
+                **parse_total_infos(integration),
             )
         except Exception:
             logger.warning(

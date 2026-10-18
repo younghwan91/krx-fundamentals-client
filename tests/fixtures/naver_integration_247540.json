@@ -1,0 +1,134 @@
+{
+ "itemCode": "247540",
+ "stockName": "에코프로비엠",
+ "stockEndType": "stock",
+ "totalInfos": [
+  {
+   "code": "lastClosePrice",
+   "key": "전일",
+   "value": "105,900"
+  },
+  {
+   "code": "openPrice",
+   "key": "시가",
+   "value": "108,000",
+   "compareToPreviousPrice": {
+    "code": "2",
+    "text": "상승",
+    "name": "RISING"
+   }
+  },
+  {
+   "code": "highPrice",
+   "key": "고가",
+   "value": "110,400",
+   "compareToPreviousPrice": {
+    "code": "2",
+    "text": "상승",
+    "name": "RISING"
+   }
+  },
+  {
+   "code": "lowPrice",
+   "key": "저가",
+   "value": "103,000",
+   "compareToPreviousPrice": {
+    "code": "5",
+    "text": "하락",
+    "name": "FALLING"
+   }
+  },
+  {
+   "code": "accumulatedTradingVolume",
+   "key": "거래량",
+   "value": "607,837"
+  },
+  {
+   "code": "accumulatedTradingValue",
+   "key": "대금",
+   "value": "651억"
+  },
+  {
+   "code": "marketValue",
+   "key": "시총",
+   "value": "10조 4,189억"
+  },
+  {
+   "code": "foreignRate",
+   "key": "외인소진율",
+   "value": "14.86%"
+  },
+  {
+   "code": "highPriceOf52WeeksAdjusted",
+   "key": "52주 최고",
+   "value": "255,907"
+  },
+  {
+   "code": "highPriceOf52Weeks",
+   "key": "원주가 기준",
+   "value": "260,000"
+  },
+  {
+   "code": "lowPriceOf52WeeksAdjusted",
+   "key": "52주 최저",
+   "value": "86,910"
+  },
+  {
+   "code": "lowPriceOf52Weeks",
+   "key": "원주가 기준",
+   "value": "88,200"
+  },
+  {
+   "code": "per",
+   "key": "PER",
+   "value": "238.26배",
+   "valueDesc": "2026.06."
+  },
+  {
+   "code": "eps",
+   "key": "EPS",
+   "value": "447원",
+   "valueDesc": "2026.06."
+  },
+  {
+   "code": "cnsPer",
+   "key": "추정PER",
+   "value": "1,238.37배"
+  },
+  {
+   "code": "cnsEps",
+   "key": "추정EPS",
+   "value": "86원"
+  },
+  {
+   "code": "pbr",
+   "key": "PBR",
+   "value": "5.80배",
+   "valueDesc": "2026.06."
+  },
+  {
+   "code": "bps",
+   "key": "BPS",
+   "value": "18,351원",
+   "valueDesc": "2026.06."
+  },
+  {
+   "code": "dividendYieldRatio",
+   "key": "배당수익률",
+   "value": "0.09%",
+   "valueDesc": "2026.03."
+  },
+  {
+   "code": "dividend",
+   "key": "주당배당금",
+   "value": "100원",
+   "valueDesc": "2026.03."
+  }
+ ],
+ "consensusInfo": {
+  "itemCode": "247540",
+  "createDate": "2026-10-15",
+  "recommMean": "3.73",
+  "priceTargetMean": "161,483"
+ }
+}

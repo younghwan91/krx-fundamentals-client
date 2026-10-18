@@ -1,0 +1,12 @@
+{
+ "stockEndType": "stock",
+ "itemCode": "005930",
+ "stockName": "삼성전자",
+ "sosok": "0",
+ "closePrice": "217,000",
+ "compareToPreviousClosePrice": "7,000",
+ "fluctuationsRatio": "3.33",
+ "marketStatus": "CLOSE",
+ "localTradedAt": "2026-10-16T20:20:21+09:00",
+ "stockExchangeName": "KOSPI"
+}

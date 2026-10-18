@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 
 from krx_fundamentals_client.models.schemas import Market, ReportType
@@ -13,6 +16,8 @@ from krx_fundamentals_client.scrapers.naver import (
     NaverScraper,
     parse_consensus,
     parse_estimate,
+    parse_krw_eok,
+    parse_unit_number,
 )
 
 
@@ -505,3 +510,170 @@ async def test_base_scraper_make_id_unique():
     id3 = BaseScraper.make_id("krx", "005930")
     assert id1 != id2
     assert id1 != id3
+
+
+# ----------------------------------------------------------------------
+# 실응답 축약 픽스처 (tests/fixtures/*.json, 2026-10 실측)
+# ----------------------------------------------------------------------
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _fixture(name: str) -> dict:
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+def _no_throttle(scraper: BaseScraper) -> BaseScraper:
+    scraper.min_delay = scraper.max_delay = 0.0
+    return scraper
+
+
+async def test_dart_fetch_dividends_uses_alot_matter_and_picks_common_stock(httpx_mock):
+    scraper = _no_throttle(DartScraper(api_key="test_key"))
+    scraper._corp_map = {"005930": "00126380"}
+    httpx_mock.add_response(
+        url=httpx.URL(
+            "https://opendart.fss.or.kr/api/alotMatter.json",
+            params={
+                "crtfc_key": "test_key",
+                "corp_code": "00126380",
+                "bsns_year": "2024",
+                "reprt_code": "11011",
+            },
+        ),
+        json=_fixture("dart_alotMatter_005930_2024.json"),
+    )
+
+    div = await scraper.fetch_dividends("005930", 2024)
+
+    assert div is not None
+    assert div.ticker == "005930" and div.year == 2024
+    # 보통주 행 — '주당액면가액(원)'(100) 이나 우선주(1,447) 를 집으면 안 된다
+    assert div.dividend_per_share == 1446.0
+    assert div.dividend_yield == 2.7  # 현금배당수익률(%) 보통주 (주식배당수익률 '-' 아님)
+    assert div.payout_ratio == 29.2  # (연결)현금배당성향(%)
+    assert div.total_dividends == 9810767.0  # 현금배당금총액(백만원)
+    assert div.stlm_dt == "2024-12-31"
+
+
+async def test_dart_fetch_dividends_none_on_non_success_status(httpx_mock):
+    scraper = _no_throttle(DartScraper(api_key="test_key"))
+    scraper._corp_map = {"005930": "00126380"}
+    httpx_mock.add_response(
+        url=httpx.URL(
+            "https://opendart.fss.or.kr/api/alotMatter.json",
+            params={
+                "crtfc_key": "test_key",
+                "corp_code": "00126380",
+                "bsns_year": "2024",
+                "reprt_code": "11011",
+            },
+        ),
+        json={"status": "013", "message": "조회된 데이타가 없습니다."},
+    )
+
+    assert await scraper.fetch_dividends("005930", 2024) is None
+
+
+async def test_dart_fetch_dividends_raises_on_quota_exhausted(httpx_mock):
+    scraper = _no_throttle(DartScraper(api_key="test_key"))
+    scraper._corp_map = {"005930": "00126380"}
+    httpx_mock.add_response(json={"status": "020", "message": "요청 제한을 초과하였습니다."})
+
+    with pytest.raises(DartQuotaExceededError):
+        await scraper.fetch_dividends("005930", 2024)
+
+
+async def test_naver_fetch_stock_info_reads_ratios_from_integration(httpx_mock):
+    scraper = _no_throttle(NaverScraper())
+    httpx_mock.add_response(
+        url="https://m.stock.naver.com/api/stock/005930/basic",
+        json=_fixture("naver_basic_005930.json"),
+    )
+    httpx_mock.add_response(
+        url="https://m.stock.naver.com/api/stock/005930/integration",
+        json=_fixture("naver_integration_005930.json"),
+    )
+
+    r = await scraper.fetch_stock_info("005930")
+
+    assert r is not None
+    assert r.name == "삼성전자"
+    assert r.market == Market.KOSPI
+    assert r.price == 217000.0  # basic.closePrice
+    assert r.per == 9.73  # "9.73배"
+    assert r.pbr == 2.52
+    assert r.eps == 22292.0  # "22,292원"
+    assert r.bps == 86052.0
+    assert r.dividend_yield == 0.77  # "0.77%"
+    assert r.market_cap == 12686425.0  # "1,268조 6,425억" → 억원
+    assert r.volume == 31811929
+    assert r.high_52w == 380000.0
+    assert r.low_52w == 93500.0
+    assert r.foreign_ratio == 45.98  # "45.98%"
+
+
+async def test_naver_fetch_stock_info_kosdaq_prefers_adjusted_52w(httpx_mock):
+    scraper = _no_throttle(NaverScraper())
+    httpx_mock.add_response(
+        url="https://m.stock.naver.com/api/stock/247540/basic",
+        json=_fixture("naver_basic_247540.json"),
+    )
+    httpx_mock.add_response(
+        url="https://m.stock.naver.com/api/stock/247540/integration",
+        json=_fixture("naver_integration_247540.json"),
+    )
+
+    r = await scraper.fetch_stock_info("247540")
+
+    assert r is not None
+    assert r.market == Market.KOSDAQ
+    assert r.market_cap == 104189.0  # "10조 4,189억"
+    assert r.per == 238.26
+    assert r.high_52w == 255907.0  # highPriceOf52WeeksAdjusted, 원주가 기준(260,000) 아님
+    assert r.low_52w == 86910.0
+
+
+async def test_naver_fetch_stock_info_none_when_integration_fails(httpx_mock):
+    scraper = _no_throttle(NaverScraper())
+    scraper.max_retries = 1
+    httpx_mock.add_response(
+        url="https://m.stock.naver.com/api/stock/005930/basic",
+        json=_fixture("naver_basic_005930.json"),
+    )
+    httpx_mock.add_response(
+        url="https://m.stock.naver.com/api/stock/005930/integration", status_code=500,
+    )
+
+    assert await scraper.fetch_stock_info("005930") is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("9.73배", 9.73),
+        ("22,292원", 22292.0),
+        ("0.77%", 0.77),
+        ("31,811,929", 31811929.0),
+        ("-", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_parse_unit_number(raw, expected):
+    assert parse_unit_number(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("1,268조 6,425억", 12686425.0),
+        ("10조 4,189억", 104189.0),
+        ("651억", 651.0),
+        ("6조 8,818억", 68818.0),
+        ("-", None),
+        (None, None),
+    ],
+)
+def test_parse_krw_eok(raw, expected):
+    assert parse_krw_eok(raw) == expected

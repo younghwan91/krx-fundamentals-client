@@ -134,6 +134,7 @@ class Dividend(BaseModel):
     total_dividends: float | None = None  # 배당금 총액 (백만원)
     ex_dividend_date: str = ""
     payment_date: str = ""
+    stlm_dt: str = ""  # 결산기준일 (YYYY-MM-DD, DART alotMatter)
     collected_at: datetime = Field(default_factory=datetime.now)
 
 
