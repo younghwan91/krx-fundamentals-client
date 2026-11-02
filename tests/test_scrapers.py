@@ -9,7 +9,11 @@ import pytest
 
 from krx_fundamentals_client.models.schemas import Market, ReportType
 from krx_fundamentals_client.scrapers.base import BaseScraper
-from krx_fundamentals_client.scrapers.dart import DartQuotaExceededError, DartScraper
+from krx_fundamentals_client.scrapers.dart import (
+    DartQuotaExceededError,
+    DartScraper,
+    _parse_shares_outstanding,
+)
 from krx_fundamentals_client.scrapers.krx import KrxScraper
 from krx_fundamentals_client.scrapers.naver import (
     NaverConsensusScraper,
@@ -247,6 +251,74 @@ async def test_dart_fetch_financials_batch_on_status_not_called_on_success():
     )
 
     assert seen == []
+
+
+
+def _shares_row(se, totqy="100", stlm="2021-12-31", rcept="20220308000001"):
+    return {"se": se, "istc_totqy": totqy, "stlm_dt": stlm, "rcept_no": rcept}
+
+
+# 2026-11-02 stockTotqySttus 실측 라벨(행 구성도 그 응답 그대로). 값은 임의다.
+_REAL_LABEL_RESPONSES = [
+    ("보통주", ["우선주", "합계", "비고"]),                                # 017670
+    ("보통주식", ["기타주식", "합계", "비고"]),                             # 041920
+    ("보통주식", ["종류주식", "합계", "비고"]),                             # 036170
+    ("의결권이 있는\n주식(보통주)", ["의결권이 없는\n주식(우선주)", "합계", "비고"]),  # 009150
+    ("의결권 있는 주식\n(보통주)", ["의결권 없는 주식\n(우선주)", "합계", "비고"]),  # 066570
+    ("의결권 있는 주식(보통주)", ["의결권 없는 주식(우선주)", "합계", "비고"]),         # 011780
+    ("의결권있는 주식", ["의결권없는 주식", "합계", "비고"]),                    # 034730
+    ("의결권 있는 주식", ["의결권 없는 주식", "합계", "비고"]),                  # 068270 2024
+    ("의결권 있는 보통주", ["의결권 없는 우선주", "합계", "비고"]),
+]
+
+
+@pytest.mark.parametrize(("common", "others"), _REAL_LABEL_RESPONSES)
+def test_parse_shares_accepts_real_common_labels(common, others):
+    rows = [_shares_row(common, "1,234")] + [_shares_row(o, "9,999") for o in others]
+    assert _parse_shares_outstanding(rows) == (1234, "2021-12-31", "20220308000001")
+
+
+def test_parse_shares_order_of_rows_does_not_matter():
+    rows = [
+        _shares_row("합계", "9"),
+        _shares_row("의결권없는 주식", "8"),
+        _shares_row("의결권있는 주식", "7"),
+    ]
+    assert _parse_shares_outstanding(rows)[0] == 7
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        # 보통주 후보가 둘 — 어느 쪽인지 추측하지 않는다
+        [_shares_row("보통주", "1"), _shares_row("의결권있는 주식", "2"), _shares_row("합계", "3")],
+        [_shares_row("보통주", "1"), _shares_row("보통주", "2")],
+        # 모르는 라벨이 끼면 보통주 행이 있어도 버린다(그 라벨이 무엇인지 모른다)
+        [_shares_row("보통주", "1"), _shares_row("클래스B", "2"), _shares_row("합계", "3")],
+        [_shares_row("A주식", "1"), _shares_row("합계", "3")],
+        [_shares_row("", "1")],
+    ],
+)
+def test_parse_shares_ambiguous_or_unknown_label_drops_value_and_warns(rows, caplog):
+    with caplog.at_level("WARNING"):
+        assert _parse_shares_outstanding(rows) is None
+    assert "값을 버린다" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [_shares_row("합계", "-"), _shares_row("비고", "-")],  # 068270 2024 Q1
+        [_shares_row("우선주", "5"), _shares_row("합계", "5")],  # 합계로 대신하지 않는다
+        [_shares_row("보통주", "-"), _shares_row("합계", "-")],  # 값 없음
+        [_shares_row("의결권 없는 주식", "5"), _shares_row("종류주식", "5")],
+        [],
+    ],
+)
+def test_parse_shares_no_common_value_is_silent_none(rows, caplog):
+    with caplog.at_level("WARNING"):
+        assert _parse_shares_outstanding(rows) is None
+    assert caplog.text == ""
 
 
 async def test_dart_fetch_shares_outstanding_picks_common_stock_row():

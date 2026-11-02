@@ -171,21 +171,53 @@ def _parse_dividend_rows(items: list[dict]) -> dict:
     }
 
 
+#: stockTotqySttus ``se`` 가 이 말을 담으면(공백 제거 뒤) 보통주 후보가 아니다 — 먼저 본다.
+#: ``합계`` 는 우선주가 섞여 시가총액 분모로 못 쓰고,
+#: ``의결권없`` 은 ``의결권 없는 주식(우선주)`` 꼴이다.
+_SHARES_LABEL_EXCLUDE = ("합계", "비고", "우선", "종류", "기타", "의결권없")
+#: 공백을 지운 ``se`` 가 이 말을 담으면 보통주 행이다. 실측 라벨(2026-11-02 표본, 회사가 쓴 그대로):
+#: ``보통주`` · ``보통주식`` · ``의결권이 있는\n주식(보통주)`` · ``의결권 있는 주식\n(보통주)`` ·
+#: ``의결권 있는 보통주`` · ``의결권있는 주식``.
+_SHARES_LABEL_COMMON = ("보통주", "의결권있는주식")
+
+
 def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
     """stockTotqySttus 응답의 ``list``에서 보통주 발행주식총수 행을 찾는다.
 
-    ``se == "합계"``는 우선주가 섞여 있어 시가총액 분모로 못 쓴다 — 보통주
-    행만 골라 ``istc_totqy``(발행주식총수)를 쓴다. 유통주식수(``distb_stock_co``)는
-    자기주식을 뺀 값이라 시총을 과소계상하므로 쓰지 않는다.
+    ``se``(구분) 표기가 회사마다 다르다 — ``se == "보통주"`` 만 받던 때는 나머지 표기가 전부
+    "자료 없음"이 됐다(009150 2021 ``의결권이 있는\n주식(보통주)``, 034730 ``의결권있는 주식``).
+    공백을 지우고 :data:`_SHARES_LABEL_EXCLUDE` 를 먼저 빼고 :data:`_SHARES_LABEL_COMMON` 을 찾는다.
+
+    **추측하지 않는다.** 후보가 둘 이상이거나 어느 쪽도 아닌 라벨이 있으면 값을 버리고 경고한다 —
+    틀린 값보다 없는 값이 낫다. 호출부(``fetch_shares_outstanding``)는 다음 보고서로 넘어간다.
+
+    ``se == "합계"``는 우선주가 섞여 있어 시가총액 분모로 못 쓴다. 쓰는 값은
+    ``istc_totqy``(발행주식총수)다. 유통주식수(``distb_stock_co``)는 자기주식을 뺀 값이라
+    시총을 과소계상하므로 쓰지 않는다.
     """
+    candidates: list[dict] = []
+    unknown: list[str] = []
     for row in rows:
-        if (row.get("se") or "").strip() != "보통주":
+        label = "".join((row.get("se") or "").split())
+        if any(word in label for word in _SHARES_LABEL_EXCLUDE):
             continue
-        istc_totqy = parse_int(row.get("istc_totqy"), default=0)
-        if istc_totqy <= 0:
-            continue
-        return istc_totqy, (row.get("stlm_dt") or "").strip(), (row.get("rcept_no") or "").strip()
-    return None
+        if any(word in label for word in _SHARES_LABEL_COMMON):
+            candidates.append(row)
+        else:
+            unknown.append(label)
+    if unknown or len(candidates) >= 2:
+        logger.warning(
+            "[dart] shares_outstanding 라벨을 가릴 수 없어 값을 버린다 — 후보 %d개, 모르는 라벨 %s",
+            len(candidates), unknown,
+        )
+        return None
+    if not candidates:
+        return None
+    row = candidates[0]
+    istc_totqy = parse_int(row.get("istc_totqy"), default=0)
+    if istc_totqy <= 0:
+        return None
+    return istc_totqy, (row.get("stlm_dt") or "").strip(), (row.get("rcept_no") or "").strip()
 
 
 class DartScraper(BaseScraper):
@@ -492,8 +524,8 @@ class DartScraper(BaseScraper):
         완전하지만, 상장폐지 직전 사업연도엔 없는 경우가 많아 분기·반기까지
         훑어야 커버리지가 오른다.
 
-        시가총액 분모로 쓸 값이라 ``se == "보통주"`` 행만 보고 우선주가 섞인
-        ``"합계"``는 건너뛴다. 반환하는 ``stlm_dt``(기준일)와
+        시가총액 분모로 쓸 값이라 보통주 행만 보고 우선주가 섞인 ``"합계"``는
+        건너뛴다(라벨 판정은 :func:`_parse_shares_outstanding`). 반환하는 ``stlm_dt``(기준일)와
         ``knowledge_date``(``rcept_no`` 앞 8자리, 공시 접수일)는 서로 다른
         시점이다 — 그 수치가 가리키는 날과 그걸 알게 된 날을 구분해야 하는
         point-in-time 용도로 둘 다 남긴다.
