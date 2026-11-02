@@ -269,6 +269,8 @@ _REAL_LABEL_RESPONSES = [
     ("의결권있는 주식", ["의결권없는 주식", "합계", "비고"]),                    # 034730
     ("의결권 있는 주식", ["의결권 없는 주식", "합계", "비고"]),                  # 068270 2024
     ("의결권 있는 보통주", ["의결권 없는 우선주", "합계", "비고"]),
+    ("의결권이 있는 주식", ["의결권이 없는 주식", "합계", "비고"]),
+    ("의결권이있는주식", ["의결권이없는주식", "합계", "비고"]),
 ]
 
 
@@ -297,6 +299,8 @@ def test_parse_shares_order_of_rows_does_not_matter():
         [_shares_row("보통주", "1"), _shares_row("클래스B", "2"), _shares_row("합계", "3")],
         [_shares_row("A주식", "1"), _shares_row("합계", "3")],
         [_shares_row("", "1")],
+        # 오타도 고쳐 읽지 않는다(실측 "보퉁주") — 호출부가 다음 보고서로 넘어간다
+        [_shares_row("보퉁주", "1"), _shares_row("합계", "1")],
     ],
 )
 def test_parse_shares_ambiguous_or_unknown_label_drops_value_and_warns(rows, caplog):

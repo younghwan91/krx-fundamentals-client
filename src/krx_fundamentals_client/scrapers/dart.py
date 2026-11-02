@@ -177,16 +177,17 @@ def _parse_dividend_rows(items: list[dict]) -> dict:
 _SHARES_LABEL_EXCLUDE = ("합계", "비고", "우선", "종류", "기타", "의결권없")
 #: 공백을 지운 ``se`` 가 이 말을 담으면 보통주 행이다. 실측 라벨(2026-11-02 표본, 회사가 쓴 그대로):
 #: ``보통주`` · ``보통주식`` · ``의결권이 있는\n주식(보통주)`` · ``의결권 있는 주식\n(보통주)`` ·
-#: ``의결권 있는 보통주`` · ``의결권있는 주식``.
+#: ``의결권 있는 보통주`` · ``의결권있는 주식`` · ``의결권이 있는 주식``(토 ``이`` 는 지우고 본다).
 _SHARES_LABEL_COMMON = ("보통주", "의결권있는주식")
 
 
-def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
+def _parse_shares_outstanding(rows: list[dict], context: str = "") -> tuple[int, str, str] | None:
     """stockTotqySttus 응답의 ``list``에서 보통주 발행주식총수 행을 찾는다.
 
     ``se``(구분) 표기가 회사마다 다르다 — ``se == "보통주"`` 만 받던 때는 나머지 표기가 전부
     "자료 없음"이 됐다(009150 2021 ``의결권이 있는\n주식(보통주)``, 034730 ``의결권있는 주식``).
-    공백을 지우고 :data:`_SHARES_LABEL_EXCLUDE` 를 먼저 빼고 :data:`_SHARES_LABEL_COMMON` 을 찾는다.
+    공백과 ``의결권이`` 의 토 ``이`` 를 지우고 :data:`_SHARES_LABEL_EXCLUDE` 를 먼저 빼고
+    :data:`_SHARES_LABEL_COMMON` 을 찾는다.
 
     **추측하지 않는다.** 후보가 둘 이상이거나 어느 쪽도 아닌 라벨이 있으면 값을 버리고 경고한다 —
     틀린 값보다 없는 값이 낫다. 호출부(``fetch_shares_outstanding``)는 다음 보고서로 넘어간다.
@@ -198,7 +199,7 @@ def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
     candidates: list[dict] = []
     unknown: list[str] = []
     for row in rows:
-        label = "".join((row.get("se") or "").split())
+        label = "".join((row.get("se") or "").split()).replace("의결권이", "의결권")
         if any(word in label for word in _SHARES_LABEL_EXCLUDE):
             continue
         if any(word in label for word in _SHARES_LABEL_COMMON):
@@ -207,8 +208,8 @@ def _parse_shares_outstanding(rows: list[dict]) -> tuple[int, str, str] | None:
             unknown.append(label)
     if unknown or len(candidates) >= 2:
         logger.warning(
-            "[dart] shares_outstanding 라벨을 가릴 수 없어 값을 버린다 — 후보 %d개, 모르는 라벨 %s",
-            len(candidates), unknown,
+            "[dart] %s 라벨을 가릴 수 없어 값을 버린다 — 후보 %s, 모르는 라벨 %s",
+            context or "shares_outstanding", [c.get("se") for c in candidates], unknown,
         )
         return None
     if not candidates:
@@ -558,7 +559,7 @@ class DartScraper(BaseScraper):
             if not self._check_response(data, context, on_status=on_status):
                 continue
 
-            parsed = _parse_shares_outstanding(data.get("list", []))
+            parsed = _parse_shares_outstanding(data.get("list", []), context)
             if parsed is None:
                 continue
 
