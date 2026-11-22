@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/wordmark-dark.svg">
-  <img alt="krx-fundamentals-client" src="docs/images/brand/wordmark-light.svg" height="56">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/banner-dark.svg">
+  <img alt="krx-fundamentals-client" src="docs/images/brand/banner-light.svg" width="100%">
 </picture>
 
 **국내 기업 펀더멘탈을 DART·KRX·네이버에서 모아 Pydantic 모델로 돌려주는 Python 라이브러리 — 서버 없이 pip 한 줄.**

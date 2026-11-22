@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200" height="280" fill="none">
+  <defs>
+    <linearGradient id="kfc-banner-bg-d" x1="0" y1="0" x2="1200" y2="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B1120"/>
+      <stop offset="65%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#172554"/>
+    </linearGradient>
+    <radialGradient id="kfc-glow-d" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(975 140) rotate(90) scale(160 240)">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="kfc-mark-bg-d" x1="56" y1="48" x2="120" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <pattern id="kfc-dots-d" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#334155" fill-opacity="0.7"/>
+    </pattern>
+  </defs>
+
+  <!-- Card Container -->
+  <rect x="1" y="1" width="1198" height="278" rx="20" fill="url(#kfc-banner-bg-d)" stroke="#1E293B" stroke-width="1.5"/>
+  <rect x="740" y="16" width="444" height="248" rx="14" fill="url(#kfc-dots-d)" opacity="0.65"/>
+  <rect x="720" y="2" width="478" height="276" rx="18" fill="url(#kfc-glow-d)"/>
+
+  <!-- Left: Brand Mark (64x64) -->
+  <rect x="56" y="48" width="64" height="64" rx="14" fill="url(#kfc-mark-bg-d)"/>
+  <rect x="57" y="49" width="62" height="62" rx="13" stroke="#60A5FA" stroke-opacity="0.35" stroke-width="1.5"/>
+  <path d="M71 95H105" stroke="#93C5FD" stroke-width="2.2" stroke-linecap="round"/>
+  <rect x="73" y="79" width="7" height="14" rx="2" fill="#93C5FD"/>
+  <rect x="84.5" y="71" width="7" height="22" rx="2" fill="#FFFFFF"/>
+  <rect x="96" y="65" width="7" height="28" rx="2" fill="#FBBF24"/>
+  <path d="M76.5 74L88 66L99.5 61" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.85"/>
+  <circle cx="99.5" cy="61" r="2.2" fill="#FFFFFF"/>
+
+  <!-- Left: Title & Tagline & Tech Pills -->
+  <text x="138" y="88" fill="#F8FAFC" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="36" font-weight="800" letter-spacing="-0.025em">krx-fundamentals-client</text>
+  <text x="139" y="110" fill="#60A5FA" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" letter-spacing="0.1em">KOREAN CORPORATE FUNDAMENTALS</text>
+
+  <text x="56" y="156" fill="#CBD5E1" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="19.5" font-weight="500">DART, KRX &amp; Naver fundamentals unified as Pydantic models.</text>
+
+  <rect x="56" y="192" width="116" height="32" rx="16" fill="#1E293B" stroke="#334155" stroke-width="1.2"/>
+  <circle cx="74" cy="208" r="4" fill="#FBBF24"/>
+  <text x="86" y="213" fill="#F8FAFC" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Python 3.11+</text>
+
+  <rect x="184" y="192" width="122" height="32" rx="16" fill="#1E3A8A" fill-opacity="0.55" stroke="#3B82F6" stroke-width="1.2"/>
+  <text x="202" y="213" fill="#BFDBFE" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Pydantic v2</text>
+
+  <rect x="318" y="192" width="116" height="32" rx="16" fill="#451A03" fill-opacity="0.6" stroke="#D97706" stroke-width="1.2"/>
+  <text x="336" y="213" fill="#FDE68A" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Async httpx</text>
+
+  <!-- Right: Fundamental Bars + Trend Artwork -->
+  <rect x="786" y="38" width="356" height="204" rx="16" fill="#0F172A" stroke="#1E3A8A" stroke-width="1.5"/>
+  <!-- Gridlines -->
+  <path d="M816 86H1112M816 126H1112M816 166H1112" stroke="#1E293B" stroke-width="1.5"/>
+  <path d="M816 204H1112" stroke="#60A5FA" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Fundamental Bars -->
+  <rect x="830" y="152" width="32" height="52" rx="6" fill="#1E40AF"/>
+  <rect x="886" y="130" width="32" height="74" rx="6" fill="#2563EB"/>
+  <rect x="942" y="108" width="32" height="96" rx="6" fill="#60A5FA"/>
+  <rect x="998" y="88" width="32" height="116" rx="6" fill="#93C5FD"/>
+  <rect x="1054" y="68" width="32" height="136" rx="6" fill="#FBBF24"/>
+
+  <!-- Trend Line & Nodes -->
+  <path d="M846 132L902 110L958 92L1014 70L1070 54" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="846" cy="132" r="5" fill="#0F172A" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="902" cy="110" r="5" fill="#0F172A" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="958" cy="92" r="5" fill="#0F172A" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="1014" cy="70" r="5" fill="#0F172A" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="1070" cy="54" r="6" fill="#FBBF24" stroke="#FFFFFF" stroke-width="2.5"/>
+</svg>
