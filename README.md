@@ -1,22 +1,25 @@
-# krx-fundamentals-client
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/wordmark-dark.svg">
+  <img alt="krx-fundamentals-client" src="docs/images/brand/wordmark-light.svg" height="56">
+</picture>
 
 **국내 기업 펀더멘탈을 DART·KRX·네이버에서 모아 Pydantic 모델로 돌려주는 Python 라이브러리 — 서버 없이 pip 한 줄.**
 
 [![CI](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml/badge.svg)](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](LICENSE)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-younghwan--chae-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/younghwan-chae/)
+
+[English](README.en.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
   <img alt="삼성전자 한 종목의 DART 연결 재무제표 8개년(매출·영업이익)·배당과 네이버 PER·PBR·배당수익률을 라이브러리로 받아 한 스키마로 그린 그림" src="docs/images/hero-light.png" width="100%">
 </picture>
 
-[English](README.en.md)
-
-- 위 그림의 숫자는 전부 라이브러리 호출값과 그 비율(영업이익률)이다 — 삼성전자 연결 재무제표 FY2018~FY2025 8개년은 `fetch_financials`, 주당배당금은 `fetch_dividends`, PER·PBR·배당수익률은 `NaverScraper.fetch_stock_info` 로 받은 그대로([hero-data.json](docs/images/hero-data.json)).
-- 상시 서버·캐시·스케줄러가 없다. 의존성은 httpx·beautifulsoup4·lxml·pydantic 넷뿐이고, 호출할 때마다 소스에 직접 요청한다.
-- DART 일한도 소진은 `DartQuotaExceededError` 로 던진다 — "데이터 없음"과 섞이지 않는다.
+- **단일 스키마 통합:** 위 그림의 숫자는 전부 라이브러리 호출값과 그 비율(영업이익률)이다 — 삼성전자 연결 재무제표 FY2018~FY2025 8개년은 `fetch_financials`, 주당배당금은 `fetch_dividends`, PER·PBR·배당수익률은 `NaverScraper.fetch_stock_info` 로 받은 그대로([hero-data.json](docs/images/hero-data.json)).
+- **서버 없는 경량 클라이언트:** 상시 서버·캐시·스케줄러가 없다. 의존성은 `httpx`·`beautifulsoup4`·`lxml`·`pydantic` 넷뿐이고, 호출할 때마다 소스에 직접 요청한다.
+- **명확한 실패 구분:** DART 일한도 소진은 `DartQuotaExceededError` 로 던진다 — "데이터 없음"(`None`)과 섞이지 않는다.
 
 > ⛔ **KRX 경로는 막혀 있다 (2026-08 실측).** KRX 가 로그인을 걸어 `KrxScraper` 가 예외 없이 빈 리스트를 돌려준다.
 > DART 경로는 영향 없고, 시세·PER·PBR 같은 종목별 투자지표는 `NaverScraper` 로 받는다. 추적: [docs/krx-blocked.md](docs/krx-blocked.md).

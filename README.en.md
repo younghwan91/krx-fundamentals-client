@@ -1,22 +1,25 @@
-# krx-fundamentals-client
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/wordmark-dark.svg">
+  <img alt="krx-fundamentals-client" src="docs/images/brand/wordmark-light.svg" height="56">
+</picture>
 
 **Korean corporate fundamentals from DART, KRX and Naver as Pydantic models — a Python library, no server, one pip line.**
 
 [![CI](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml/badge.svg)](https://github.com/younghwan91/krx-fundamentals-client/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](https://github.com/younghwan91/krx-fundamentals-client/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/younghwan91/krx-fundamentals-client)](LICENSE)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-younghwan--chae-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/younghwan-chae/)
+
+[한국어](README.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
   <img alt="Eight years of Samsung Electronics consolidated revenue and operating income and the dividend from DART, plus PER, PBR and dividend yield from Naver, fetched through the library into one schema" src="docs/images/hero-light.png" width="100%">
 </picture>
 
-[한국어](README.md)
-
-- Every number above is a library return value or a ratio of two (operating margin): Samsung Electronics consolidated statements FY2018 to FY2025 from `fetch_financials`, the dividend per share from `fetch_dividends`, PER, PBR and dividend yield from `NaverScraper.fetch_stock_info` ([hero-data.json](docs/images/hero-data.json)).
-- No standing server, cache or scheduler. Four dependencies (httpx, beautifulsoup4, lxml, pydantic); each call hits the source directly.
-- A spent DART daily quota raises `DartQuotaExceededError`, so it never masquerades as "no data".
+- **Unified Pydantic schema:** Every number above is a library return value or a ratio of two (operating margin): Samsung Electronics consolidated statements FY2018 to FY2025 from `fetch_financials`, the dividend per share from `fetch_dividends`, PER, PBR and dividend yield from `NaverScraper.fetch_stock_info` ([hero-data.json](docs/images/hero-data.json)).
+- **Lightweight, zero-server client:** No standing server, cache or scheduler. Four dependencies (`httpx`, `beautifulsoup4`, `lxml`, `pydantic`); each call hits the source directly.
+- **Explicit failure semantics:** A spent DART daily quota raises `DartQuotaExceededError`, so it never masquerades as "no data" (`None`).
 
 > ⛔ **The KRX path is blocked (measured 2026-08).** KRX put a login in front of its endpoints and `KrxScraper` now returns an empty list without raising.
 > The DART path is unaffected; per-ticker price and valuation ratios (PER, PBR, ...) come from `NaverScraper`. Walkthrough: [docs/krx-blocked.md](docs/krx-blocked.md) (Korean).
