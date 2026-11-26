@@ -140,6 +140,8 @@ asyncio.run(main())
 <details>
 <summary><b>PBR·배당수익률로 거르고 PER 낮은 순으로 정렬하기</b> (네이버, 키 불필요)</summary>
 
+`screen_stocks`의 `market`에는 `Market` enum 또는 대소문자 구분 없는 문자열(예: `"KOSPI"`)을 사용할 수 있으며, 지원하지 않는 값은 `ValueError`를 일으키고 시장 필터를 지정하면 시장 정보가 없는 종목은 제외됩니다.
+
 ```python
 import asyncio
 from krx_fundamentals_client import NaverScraper, RankingMetric, rank_stocks, screen_stocks

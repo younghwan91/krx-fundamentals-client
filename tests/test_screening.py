@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from krx_fundamentals_client.models.schemas import Company, InvestmentRatio, Market, RankingMetric
 from krx_fundamentals_client.screening import rank_stocks, screen_stocks
 
@@ -32,6 +34,32 @@ def test_screen_stocks_no_filters_returns_all():
 def test_screen_stocks_by_market():
     result = screen_stocks(_RATIOS, market="kosdaq")
     assert [r.ticker for r in result] == ["035420"]
+
+
+@pytest.mark.parametrize(
+    "market", ["kospi", "KOSPI", "KoSpI", Market.KOSPI], ids=["lower", "upper", "mixed", "enum"]
+)
+def test_screen_stocks_by_market_accepts_case_and_enum(market):
+    result = screen_stocks(_RATIOS, market=market)
+    assert [r.ticker for r in result] == ["005930", "000660"]
+
+
+def test_screen_stocks_rejects_unknown_market():
+    with pytest.raises(ValueError, match="NASDAQ|nasdaq"):
+        screen_stocks(_RATIOS, market="NASDAQ")
+
+
+def test_screen_stocks_rejects_empty_market_string():
+    with pytest.raises(ValueError):
+        screen_stocks(_RATIOS, market="")
+
+
+def test_screen_stocks_excludes_missing_market_only_when_filtering():
+    unknown_market = InvestmentRatio(ticker="000001")
+    ratios = [unknown_market, *_RATIOS]
+
+    assert screen_stocks(ratios, market="kospi") == _RATIOS[:2]
+    assert screen_stocks(ratios, market=None) == ratios
 
 
 def test_screen_stocks_by_per_range_excludes_missing_values():

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from krx_fundamentals_client.models.schemas import Company, InvestmentRatio, RankingMetric
+from krx_fundamentals_client.models.schemas import Company, InvestmentRatio, Market, RankingMetric
 
 # InvestmentRatio에 없는 지표(revenue, net_income)는 market_cap으로 대체한다 —
 # 기존 서비스 계층(services/cache.py)의 동작을 그대로 보존한 것.
@@ -32,9 +32,10 @@ def screen_stocks(
 
     `sector` 필터를 쓰려면 `companies`(섹터 정보를 담은 Company 목록)를 함께 넘겨야 한다.
     """
+    market_filter = Market(market.lower()) if market is not None else None
     filtered = []
     for r in ratios:
-        if market and r.market and r.market.value != market:
+        if market_filter is not None and r.market != market_filter:
             continue
         if per_min is not None and (r.per is None or r.per < per_min):
             continue
