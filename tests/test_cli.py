@@ -119,3 +119,17 @@ def test_readme_cli_command_matches_entry_points():
     )
     for name in ("README.md", "README.en.md"):
         assert "krx-fundamentals 삼성전자" in (root / name).read_text(encoding="utf-8")
+
+
+def test_sort_ratios_direction_and_missing_last():
+    a = _ratio(ticker="A", per=9.0, dividend_yield=1.0)
+    b = _ratio(ticker="B", per=None, dividend_yield=3.0)
+    c = _ratio(ticker="C", per=4.0, dividend_yield=None)
+    assert [r.ticker for r in cli.sort_ratios([a, b, c], "per")] == ["C", "A", "B"]
+    assert [r.ticker for r in cli.sort_ratios([a, b, c], "dividend")] == ["B", "A", "C"]
+
+
+def test_main_sort_flag(fake_naver, capsys):
+    fake_naver([_ratio(ticker="000001", per=9.0), _ratio(ticker="000002", per=4.0)])
+    assert cli.main(["000001", "000002", "--sort", "per", "--json"]) == 0
+    assert [r["ticker"] for r in json.loads(capsys.readouterr().out)] == ["000002", "000001"]

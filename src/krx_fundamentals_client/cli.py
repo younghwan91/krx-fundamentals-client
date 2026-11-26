@@ -85,6 +85,23 @@ def render_table(ratios: Sequence[InvestmentRatio]) -> str:
     return "\n".join([line(header), line(sub), rule, *(line(row) for row in body)])
 
 
+# --sort 값 → (InvestmentRatio 필드, 내림차순 여부). 싼 것(PER·PBR)은 오름차순, 큰 것은 내림차순.
+SORT_KEYS: dict[str, tuple[str, bool]] = {
+    "per": ("per", False),
+    "pbr": ("pbr", False),
+    "dividend": ("dividend_yield", True),
+    "cap": ("market_cap", True),
+}
+
+
+def sort_ratios(ratios: Sequence[InvestmentRatio], key: str) -> list[InvestmentRatio]:
+    """지정 지표로 정렬한다. 값이 없는 종목은 버리지 않고 맨 뒤에 둔다."""
+    attr, desc = SORT_KEYS[key]
+    known = [r for r in ratios if getattr(r, attr) is not None]
+    known.sort(key=lambda r: getattr(r, attr), reverse=desc)
+    return known + [r for r in ratios if getattr(r, attr) is None]
+
+
 async def resolve(naver: NaverScraper, query: str) -> str | None:
     """6자리 종목코드는 그대로, 아니면 종목명을 검색해 이름이 정확히 같은 것(없으면 첫 결과)."""
     if _TICKER.match(query.upper()):
@@ -96,7 +113,7 @@ async def resolve(naver: NaverScraper, query: str) -> str | None:
     return exact[0] if exact else hits[0][0]
 
 
-async def run(queries: Sequence[str], as_json: bool) -> int:
+async def run(queries: Sequence[str], as_json: bool, sort: str | None = None) -> int:
     naver = NaverScraper()
     naver.min_delay, naver.max_delay = 0.1, 0.3  # 몇 종목뿐이라 짧게
     try:
@@ -116,6 +133,8 @@ async def run(queries: Sequence[str], as_json: bool) -> int:
         print(f"{code}: 네이버에서 투자지표를 받지 못했습니다.", file=sys.stderr)
     if not ratios:
         return 1
+    if sort:
+        ratios = sort_ratios(ratios, sort)
     if as_json:
         print(json.dumps([r.model_dump(mode="json") for r in ratios], ensure_ascii=False, indent=2))
     else:
@@ -135,8 +154,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("stocks", nargs="+", metavar="종목", help="종목명 또는 6자리 종목코드")
     parser.add_argument("--json", action="store_true", help="표 대신 InvestmentRatio JSON 으로")
+    parser.add_argument(
+        "--sort",
+        choices=sorted(SORT_KEYS),
+        help="열 순서: per·pbr 은 낮은 순, dividend(배당수익률)·cap(시가총액)은 높은 순",
+    )
     args = parser.parse_args(argv)
-    return asyncio.run(run(args.stocks, args.json))
+    return asyncio.run(run(args.stocks, args.json, args.sort))
 
 
 if __name__ == "__main__":

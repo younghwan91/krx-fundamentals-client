@@ -43,7 +43,7 @@ BPS                  92,903원        433,826원        443,872원        172,31
 출처: 네이버 증권 · 투자 판단의 근거가 아닌 참고용 수치입니다.
 ```
 
-<sub>Real output from 2026-11-27 (labels are in Korean). Add <code>--json</code> for <code>InvestmentRatio</code> JSON. Without <a href="https://docs.astral.sh/uv/">uv</a>, <code>pip install</code> and run <code>krx-fundamentals 005930</code>.</sub>
+<sub>Real output from 2026-11-27 (labels are in Korean). Reorder columns with <code>--sort per</code> (or <code>pbr</code>, <code>dividend</code>, <code>cap</code>); add <code>--json</code> for <code>InvestmentRatio</code> JSON. Without <a href="https://docs.astral.sh/uv/">uv</a>, <code>pip install</code> and run <code>krx-fundamentals 005930</code>.</sub>
 
 In code it's three lines:
 
