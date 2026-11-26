@@ -43,7 +43,7 @@ BPS                  92,903원        433,826원        443,872원        172,31
 출처: 네이버 증권 · 투자 판단의 근거가 아닌 참고용 수치입니다.
 ```
 
-<sub>2026-11-27 실제 출력입니다. <code>--json</code>을 붙이면 같은 내용을 <code>InvestmentRatio</code> JSON으로 출력합니다. <a href="https://docs.astral.sh/uv/">uv</a>가 없다면 <code>pip install</code> 후 <code>krx-fundamentals 삼성전자</code>로 실행합니다.</sub>
+<sub>2026-11-27 실제 출력입니다. <code>--sort per</code>(또는 <code>pbr</code>·<code>dividend</code>·<code>cap</code>)로 열 순서를 바꾸고, <code>--json</code>을 붙이면 같은 내용을 <code>InvestmentRatio</code> JSON으로 출력합니다. <a href="https://docs.astral.sh/uv/">uv</a>가 없다면 <code>pip install</code> 후 <code>krx-fundamentals 삼성전자</code>로 실행합니다.</sub>
 
 코드에서는 3줄이면 됩니다.
 
