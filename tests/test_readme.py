@@ -27,3 +27,18 @@ def test_readme_block_compiles_and_imports_exist(where: str, code: str) -> None:
         if isinstance(node, ast.ImportFrom) and node.module == "krx_fundamentals_client":
             for alias in node.names:
                 assert hasattr(krx_fundamentals_client, alias.name), f"{where}: {alias.name}"
+
+
+def test_pypi_readme_has_no_relative_links() -> None:
+    """PyPI 페이지는 레포 밖이다. pyproject 의 치환을 적용하면 상대 경로가 남지 않아야 한다."""
+    import tomllib
+
+    hook = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["hatch"]["metadata"][
+        "hooks"
+    ]["fancy-pypi-readme"]
+    text = "".join((ROOT / f["path"]).read_text(encoding="utf-8") for f in hook["fragments"])
+    for sub in hook["substitutions"]:
+        text = re.sub(sub["pattern"], sub["replacement"], text)
+    refs = re.findall(r'(?:src|srcset|href)="([^"]+)"|\]\(([^)]+)\)', text)
+    relative = [a or b for a, b in refs if not re.match(r"https?://|#", a or b)]
+    assert relative == []

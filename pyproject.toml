@@ -1,12 +1,12 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-fancy-pypi-readme>=24.1"]
 build-backend = "hatchling.build"
 
 [project]
 name = "krx-fundamentals-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "국내 기업 펀더멘탈 Python 클라이언트 라이브러리 — 재무제표·투자지표·배당·종목 스크리닝 (DART + KRX + 네이버)"
-readme = "README.md"
+dynamic = ["readme"]
 license = "Apache-2.0"
 authors = [{ name = "Younghwan Chae", email = "chyohw97@gmail.com" }]
 requires-python = ">=3.11"
@@ -25,6 +25,7 @@ krx-fundamentals-client = "krx_fundamentals_client.cli:main"
 Homepage = "https://github.com/younghwan91/krx-fundamentals-client"
 Documentation = "https://github.com/younghwan91/krx-fundamentals-client/blob/main/docs/guide.md"
 Issues = "https://github.com/younghwan91/krx-fundamentals-client/issues"
+Changelog = "https://github.com/younghwan91/krx-fundamentals-client/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -47,3 +48,23 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+# PyPI 페이지는 레포 밖이라 README 의 상대 경로(이미지·docs 링크)가 깨진다.
+# 빌드할 때 GitHub 절대 URL 로 바꾼다. 이미지는 raw, 나머지는 blob/main.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '(src|srcset)="(?!https?://)([^"]+)"'
+replacement = '\1="https://raw.githubusercontent.com/younghwan91/krx-fundamentals-client/main/\2"'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|#)([^)]+)\)'
+replacement = '](https://github.com/younghwan91/krx-fundamentals-client/blob/main/\1)'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'href="(?!https?://|#)([^"]+)"'
+replacement = 'href="https://github.com/younghwan91/krx-fundamentals-client/blob/main/\1"'
